@@ -77,6 +77,35 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .irow:last-child{border-bottom:none}
 .irow .k{color:var(--muted)} .irow .v{font-weight:600}
 
+/* LEADERBOARD */
+.lb-row{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.04)}
+.lb-row:last-child{border-bottom:none}
+.lb-pos{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;width:36px;text-align:center;flex-shrink:0}
+.lb-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.lb-info{flex:1;min-width:0}
+.lb-name{font-size:14px;font-weight:700}
+.lb-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.lb-points{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--accent)}
+.lb-pts-lbl{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-align:right}
+.lb-bar-wrap{flex:0 0 100px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.lb-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+/* REPORTS */
+.rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.rep-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.rep-stat .rv{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;line-height:1}
+.rep-stat .rk{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:3px}
+.chart-bar-wrap{display:flex;flex-direction:column;gap:8px}
+.cbar-row{display:flex;align-items:center;gap:8px;font-size:12px}
+.cbar-lbl{color:var(--muted);width:60px;text-align:right;flex-shrink:0}
+.cbar-track{flex:1;height:20px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden}
+.cbar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:700;color:#fff}
+.zone-bar-row{display:flex;align-items:center;gap:8px;font-size:12px}
+.zone-bar-lbl{width:80px;font-size:11px;color:var(--muted);flex-shrink:0}
+.zone-bar-track{flex:1;height:14px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden}
+.zone-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+.zone-bar-pct{width:38px;text-align:right;font-size:11px;font-weight:700}
+
 /* EMAIL PREVIEW */
 .email-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px}
 .email-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
@@ -124,7 +153,9 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
   <div class="tabs">
     <div class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</div>
     <div class="tab" onclick="showTab('alunos')" id="tab-alunos">Alunos</div>
-    <div class="tab" onclick="showTab('emails')" id="tab-emails">E-mails pós-aula</div>
+    <div class="tab" onclick="showTab('leaderboard')" id="tab-leaderboard">🏆 Ranking</div>
+    <div class="tab" onclick="showTab('relatorio')" id="tab-relatorio">📊 Relatórios</div>
+    <div class="tab" onclick="showTab('emails')" id="tab-emails">E-mails</div>
   </div>
 
   <!-- DASHBOARD -->
@@ -238,6 +269,79 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
     </div>
   </div>
 
+
+  <!-- LEADERBOARD -->
+  <div class="page content" id="page-leaderboard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px">Ranking da Academia</div>
+        <div style="font-size:12px;color:var(--muted)">Pontos acumulados de todos os alunos ativos</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--muted)">Atualizado ao vivo</span>
+        <button onclick="loadLeaderboard()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#fff;font-size:12px;cursor:pointer">↻ Atualizar</button>
+      </div>
+    </div>
+    <!-- Top 3 podium -->
+    <div id="lbPodium" style="display:flex;justify-content:center;align-items:flex-end;gap:12px;margin-bottom:28px;min-height:120px"></div>
+    <!-- Full list -->
+    <div class="tcard">
+      <div id="lbList"></div>
+    </div>
+  </div>
+
+  <!-- RELATÓRIOS -->
+  <div class="page content" id="page-relatorio">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px">Relatório Mensal</div>
+        <div style="font-size:12px;color:var(--muted)">Desempenho da academia por período</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="repMes" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:13px">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+          <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="repAno" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:13px">
+          <option>2026</option><option>2025</option>
+        </select>
+        <button onclick="loadRelatorio()" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">Ver</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="rep-grid" id="repKpis"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="repCharts">
+      <!-- Aulas por semana -->
+      <div class="tcard" id="repSemanasCard">
+        <div class="thead-row"><h2>📅 Aulas por semana</h2></div>
+        <div style="padding:16px 20px"><div id="repSemanas" class="chart-bar-wrap"></div></div>
+      </div>
+      <!-- Zonas médias -->
+      <div class="tcard" id="repZonasCard">
+        <div class="thead-row"><h2>🎯 Zonas médias do mês</h2></div>
+        <div style="padding:16px 20px"><div id="repZonas" style="display:flex;flex-direction:column;gap:10px"></div></div>
+      </div>
+    </div>
+
+    <!-- Top alunos do mês -->
+    <div class="tcard" style="margin-bottom:16px">
+      <div class="thead-row"><h2>🏆 Top alunos do mês</h2></div>
+      <table><thead><tr><th>#</th><th>Aluno</th><th>Aulas</th><th>Kcal</th><th>FTP médio</th></tr></thead>
+      <tbody id="repTopAlunos"></tbody></table>
+    </div>
+
+    <!-- Lista de aulas -->
+    <div class="tcard">
+      <div class="thead-row"><h2>📋 Aulas do mês</h2></div>
+      <table><thead><tr><th>Aluno</th><th>Aula</th><th>Data</th><th>Duração</th><th>Kcal</th><th>FTP%</th></tr></thead>
+      <tbody id="repAulas"></tbody></table>
+    </div>
+  </div>
+
 </div><!-- /app -->
 
 <!-- ALUNO DETAIL (fullscreen) -->
@@ -316,6 +420,10 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
   document.getElementById('hUser').textContent = user.name || user.email;
   document.getElementById('hLic').textContent = user.license_id || '';
+  // Definir mês/ano atual no relatório
+  const now = new Date();
+  document.getElementById('repMes').value = now.getMonth() + 1;
+  document.getElementById('repAno').value = now.getFullYear();
   loadDashboard();
 }
 
@@ -327,6 +435,8 @@ function showTab(t) {
   document.getElementById('tab-' + t).classList.add('active');
   document.getElementById('alunoDetail').style.display = 'none';
   if (t === 'alunos') loadAlunos();
+  if (t === 'leaderboard') loadLeaderboard();
+  if (t === 'relatorio') loadRelatorio();
 }
 
 // ── API ──
@@ -430,6 +540,106 @@ function fmtSeg(s) {
   if (!s) return '—';
   var m = Math.floor(s/60), sec = s%60;
   return m+'m '+(sec<10?'0':'')+sec+'s';
+}
+
+// ── Leaderboard ──
+const LB_COLORS = ['linear-gradient(135deg,#d7c414,#ea860c)','linear-gradient(135deg,#888,#aaa)','linear-gradient(135deg,#cd7c3a,#a0522d)'];
+const LB_AVATAR_BG = ['#2a2200','#1a1a1a','#1a0e00'];
+
+async function loadLeaderboard() {
+  try {
+    const list = await api('/gestor/leaderboard');
+    if (!list.length) {
+      document.getElementById('lbPodium').innerHTML = '';
+      document.getElementById('lbList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum aluno com pontos ainda.</div>';
+      return;
+    }
+    const maxPts = list[0].points || 1;
+    // Podium top 3
+    const podium = list.slice(0,3);
+    const order  = podium.length >= 3 ? [1,0,2] : (podium.length===2 ? [1,0] : [0]);
+    const heights = [90,120,75];
+    document.getElementById('lbPodium').innerHTML = order.map(i => {
+      const a = podium[i];
+      if (!a) return '';
+      const ini = (a.name||'?')[0].toUpperCase();
+      const h = heights[i];
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:52px;height:52px;border-radius:50%;background:${LB_COLORS[i]};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;box-shadow:0 0 20px rgba(234,134,12,.3)">${ini}</div>
+        <div style="font-size:13px;font-weight:700;max-width:90px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name||'—'}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--accent)">${a.points||0} pts</div>
+        <div style="background:${LB_COLORS[i]};width:80px;height:${h}px;border-radius:8px 8px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:36px;color:rgba(0,0,0,.5)">${i+1}</div>
+      </div>`;
+    }).join('');
+    // Full list
+    document.getElementById('lbList').innerHTML = list.map((a,i) => {
+      const pct = Math.round((a.points||0)/maxPts*100);
+      const ini = (a.name||'?')[0].toUpperCase();
+      const posColor = i===0?'#d7c414':i===1?'#aaa':i===2?'#cd7c3a':'var(--muted)';
+      return `<div class="lb-row">
+        <div class="lb-pos" style="color:${posColor}">${i+1}</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg,rgba(41,95,232,.3),rgba(155,48,255,.3))">${ini}</div>
+        <div class="lb-info">
+          <div class="lb-name">${a.name||'—'}</div>
+          <div class="lb-sub">${a.total_aulas} aulas · ${Math.round(a.total_kcal||0)} kcal · ${a.level||'Iniciante'}</div>
+        </div>
+        <div class="lb-bar-wrap"><div class="lb-bar-fill" style="width:${pct}%"></div></div>
+        <div style="text-align:right">
+          <div class="lb-points">${a.points||0}</div>
+          <div class="lb-pts-lbl">PTS</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ── Relatórios ──
+const ZONE_NAMES = ['Z1 Recuperação','Z2 Resistência','Z3 Tempo','Z4 Limiar','Z5 VO2max','Z6 Anaeróbio','Z7 Neuromuscular'];
+const ZONE_COLORS = ['#888','#295fe8','#5db13d','#d7c414','#ea860c','#d62d2d','#9b30ff'];
+
+async function loadRelatorio() {
+  const mes = document.getElementById('repMes').value;
+  const ano = document.getElementById('repAno').value;
+  try {
+    const d = await api('/gestor/relatorio?mes='+mes+'&ano='+ano);
+    const t = d.totais || {};
+    // KPIs
+    document.getElementById('repKpis').innerHTML = [
+      ['Aulas realizadas', t.total_aulas||0, 'var(--accent)'],
+      ['Alunos ativos', t.alunos_ativos||0, 'var(--blue)'],
+      ['Kcal queimadas', Math.round(t.total_kcal||0), 'var(--accent2)'],
+      ['Horas totais', t.total_seg ? (t.total_seg/3600).toFixed(1)+'h' : '0h', 'var(--green)'],
+    ].map(([k,v,c]) => `<div class="rep-stat"><div class="rv" style="color:${c}">${v}</div><div class="rk">${k}</div></div>`).join('');
+    // Semanas
+    const sem = d.por_semana || [];
+    const maxAulas = Math.max(...sem.map(s=>s.aulas), 1);
+    document.getElementById('repSemanas').innerHTML = sem.length
+      ? sem.map((s,i) => `<div class="cbar-row">
+          <div class="cbar-lbl">Sem. ${i+1}</div>
+          <div class="cbar-track"><div class="cbar-fill" style="width:${Math.round(s.aulas/maxAulas*100)}%;background:linear-gradient(90deg,var(--blue),var(--purple,#9b30ff))">${s.aulas} aulas</div></div>
+        </div>`).join('')
+      : '<div style="color:var(--muted);font-size:13px;padding:8px">Sem dados neste período.</div>';
+    // Zonas
+    const z = d.zonas || {};
+    const zVals = [1,2,3,4,5,6,7].map(n => parseFloat(z['z'+n]||0));
+    const maxZ = Math.max(...zVals, 1);
+    document.getElementById('repZonas').innerHTML = zVals.map((v,i) => `
+      <div class="zone-bar-row">
+        <div class="zone-bar-lbl">${ZONE_NAMES[i]}</div>
+        <div class="zone-bar-track"><div class="zone-bar-fill" style="width:${Math.round(v/maxZ*100)}%;background:${ZONE_COLORS[i]}"></div></div>
+        <div class="zone-bar-pct" style="color:${ZONE_COLORS[i]}">${v}%</div>
+      </div>`).join('');
+    // Top alunos
+    const ta = d.top_alunos || [];
+    document.getElementById('repTopAlunos').innerHTML = ta.length
+      ? ta.map((a,i) => `<tr><td><strong style="color:var(--muted)">${i+1}º</strong></td><td><strong>${a.name}</strong></td><td style="color:var(--accent)">${a.aulas}</td><td>${Math.round(a.kcal)}</td><td style="color:var(--blue)">${a.avg_ftp||'—'}%</td></tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Sem aulas neste mês.</td></tr>';
+    // Lista aulas
+    const al = d.aulas || [];
+    document.getElementById('repAulas').innerHTML = al.length
+      ? al.map(a => `<tr><td style="font-size:12px;color:var(--muted)">${a.aluno||'—'}</td><td><strong>${a.nome||'—'}</strong></td><td style="font-size:12px;color:var(--muted)">${new Date(a.data_aula).toLocaleDateString('pt-BR')}</td><td>${fmtSeg(a.dur_seg)}</td><td>${a.kcal||0}</td><td style="color:var(--blue)">${a.avg_ftp||'—'}%</td></tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Sem aulas neste mês.</td></tr>';
+  } catch(e) { console.error(e); }
 }
 
 function toast(msg) {
