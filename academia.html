@@ -443,6 +443,24 @@ var user  = JSON.parse(localStorage.getItem('pr_gestor_user') || 'null');
 var allAlunos = [];
 
 function init() {
+  // Impersonação: admin abre academia.html?impersonate=TOKEN
+  const params = new URLSearchParams(window.location.search);
+  const impToken = params.get('impersonate');
+  const acadNome = params.get('academia');
+  if (impToken) {
+    try {
+      // Decode payload sem verificar (verificação é no servidor)
+      const payload = JSON.parse(atob(impToken.split('.')[1]));
+      token = impToken;
+      user  = { ...payload, name: '⚡ ' + (acadNome||'Academia') + ' (modo suporte)' };
+      localStorage.setItem('pr_gestor_token', token);
+      localStorage.setItem('pr_gestor_user', JSON.stringify(user));
+      // Limpa URL sem reload
+      window.history.replaceState({}, '', 'academia.html');
+      showApp();
+      return;
+    } catch(e) {}
+  }
   if (token && user && (user.role === 'gestor' || user.role === 'admin')) {
     showApp();
   }
@@ -484,6 +502,13 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
   document.getElementById('hUser').textContent = user.name || user.email;
   document.getElementById('hLic').textContent = user.license_id || '';
+  // Banner de modo suporte
+  if (user.impersonated_by) {
+    var banner = document.createElement('div');
+    banner.style.cssText = 'background:linear-gradient(90deg,rgba(41,95,232,.2),rgba(155,48,255,.2));border-bottom:1px solid rgba(41,95,232,.4);padding:8px 24px;font-size:12px;font-weight:700;color:#295fe8;text-align:center;letter-spacing:1px;';
+    banner.textContent = '⚡ MODO SUPORTE — Acessando como ' + user.impersonated_by + ' · Token válido por 4h';
+    document.getElementById('app').insertBefore(banner, document.getElementById('app').firstChild);
+  }
   // Definir mês/ano atual no relatório
   const now = new Date();
   document.getElementById('repMes').value = now.getMonth() + 1;

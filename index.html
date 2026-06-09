@@ -179,6 +179,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span>Alunos</span>
     </div>
+    <div class="sb-item" onclick="showPage('financeiro')" id="nav-financeiro">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>Financeiro</span>
+    </div>
     <div class="sb-sep"></div>
   </nav>
   <div class="sb-bottom">
@@ -240,8 +244,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <input class="search-input" placeholder="Buscar academia..." oninput="filterLicencas(this.value)">
         </div>
         <table>
-          <thead><tr><th>Código</th><th>Academia / Estúdio</th><th>Contato</th><th>Plano</th><th>Alunos</th><th>Valor/mês</th><th>Status</th><th>Vencimento</th><th>Ações</th></tr></thead>
-          <tbody id="licencasTable"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">Carregando...</td></tr></tbody>
+          <thead><tr><th>Pagto</th><th>Código</th><th>Academia / Estúdio</th><th>Plano</th><th>Alunos</th><th>Valor/mês</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="licencasTable"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">Carregando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -297,7 +301,103 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
   </div>
 
+  <!-- FINANCEIRO -->
+  <div class="page" id="page-financeiro">
+    <div class="topbar">
+      <h1>Financeiro</h1>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm" onclick="loadFinanceiro()">↻ Atualizar</button>
+      </div>
+    </div>
+    <div class="content">
+      <!-- KPIs financeiros -->
+      <div class="stats-grid" style="margin-bottom:24px" id="finKpis"></div>
+      <!-- Tabela de status por licença -->
+      <div class="table-wrap">
+        <div class="table-header"><h2>Status de pagamento por academia</h2></div>
+        <table>
+          <thead><tr><th>Status</th><th>Academia</th><th>Valor/mês</th><th>Último pagto</th><th>Vencimento</th><th>Financeiro</th><th>Ações</th></tr></thead>
+          <tbody id="finTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGAMENTOS DETALHE (por licença) -->
+  <div class="page" id="page-pagamentos">
+    <div class="topbar">
+      <h1 id="pgtoTitle">Pagamentos</h1>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm" onclick="showPage('financeiro')">← Voltar</button>
+        <button class="btn btn-primary" onclick="openRegistrarPagto()">+ Registrar Pagamento</button>
+      </div>
+    </div>
+    <div class="content">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px">
+        <!-- Card licença -->
+        <div>
+          <div class="detail-card" style="margin-bottom:16px" id="pgtoLicCard"></div>
+          <div class="detail-card" id="pgtoFinCard"></div>
+        </div>
+        <!-- Histórico pagamentos -->
+        <div class="table-wrap">
+          <div class="table-header"><h2>Histórico de pagamentos</h2></div>
+          <table>
+            <thead><tr><th>Data</th><th>Referência</th><th>Valor</th><th>Método</th><th>Status</th></tr></thead>
+            <tbody id="pgtoHistTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
+
+<!-- MODAL REGISTRAR PAGAMENTO -->
+<div class="modal-overlay" id="modalPagto" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <h2>Registrar Pagamento</h2>
+    <input type="hidden" id="pgtoLicId">
+    <div class="form-row">
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="pgtoValor" step="0.01" placeholder="0,00"></div>
+      <div class="form-group"><label>Data do pagamento</label><input type="date" id="pgtoData"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Referência</label><input type="text" id="pgtoRef" placeholder="Junho/2026"></div>
+      <div class="form-group"><label>Método</label>
+        <select id="pgtoMetodo" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff">
+          <option value="cartao">Cartão</option>
+          <option value="pix">PIX</option>
+          <option value="boleto">Boleto</option>
+          <option value="dinheiro">Dinheiro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Observação</label><input type="text" id="pgtoObs" placeholder="Opcional"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closePagtoModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPagamento()">Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FINANCEIRO DA LICENÇA -->
+<div class="modal-overlay" id="modalFinanceiro" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <h2>Dados Financeiros</h2>
+    <input type="hidden" id="finLicDbId">
+    <div class="form-group"><label>Email financeiro (responsável pelo pagamento)</label><input type="email" id="finEmail" placeholder="financeiro@academia.com.br"></div>
+    <div class="form-group"><label>Nome do responsável financeiro</label><input type="text" id="finNome" placeholder="João Silva - Financeiro"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Dia de vencimento</label><input type="number" id="finDiaVenc" min="1" max="28" value="10"></div>
+      <div class="form-group"><label>Valor mensal (R$)</label><input type="number" id="finValor" step="0.01"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeFinModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFinanceiro()">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL NOVA/EDITAR LICENÇA -->
 <div class="modal-overlay" id="modalLicenca">
@@ -432,9 +532,10 @@ function showPage(page) {
   document.getElementById('page-' + page).classList.add('active');
   var navEl = document.getElementById('nav-' + page);
   if (navEl) navEl.classList.add('active');
-  if (page === 'dashboard') loadDashboard();
-  if (page === 'licencas')  loadLicencas();
-  if (page === 'alunos')    loadAlunos();
+  if (page === 'dashboard')  loadDashboard();
+  if (page === 'licencas')   loadLicencas();
+  if (page === 'alunos')     loadAlunos();
+  if (page === 'financeiro') loadFinanceiro();
 }
 
 // ── API helper ────────────────────────────────────────────────
@@ -476,38 +577,198 @@ async function loadDashboard() {
 }
 
 // ── Licenças ──────────────────────────────────────────────────
+// Status de pagamento → dot colorido
+const PGTO_STATUS = {
+  em_dia:   { cor:'#5db13d', label:'Em dia',   title:'Pagamento em dia' },
+  atrasado: { cor:'#d7c414', label:'Atrasado', title:'Pagamento em atraso' },
+  bloqueado:{ cor:'#d62d2d', label:'Bloqueado',title:'Bloqueado — +15 dias de atraso' },
+  pendente: { cor:'#888',    label:'Pendente', title:'Sem pagamento registrado' },
+};
+function pgtoDot(status) {
+  const s = PGTO_STATUS[status] || PGTO_STATUS.pendente;
+  return `<span title="${s.title}" style="display:inline-flex;align-items:center;gap:5px">
+    <span style="width:10px;height:10px;border-radius:50%;background:${s.cor};box-shadow:0 0 6px ${s.cor};flex-shrink:0"></span>
+    <span style="font-size:11px;color:${s.cor};font-weight:700">${s.label}</span>
+  </span>`;
+}
+
 async function loadLicencas() {
   const tbody = document.getElementById('licencasTable');
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">Carregando...</td></tr>';
   try {
     allLicencas = await api('/admin/licencas');
     renderLicencas(allLicencas);
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="9" style="color:#d62d2d;padding:20px">Erro ao carregar.</td></tr>'; }
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="color:#d62d2d;padding:20px">Erro ao carregar.</td></tr>'; }
 }
 
 function renderLicencas(list) {
   const tbody = document.getElementById('licencasTable');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><br>Nenhuma licença cadastrada.<br><button class="btn btn-primary btn-sm" onclick="openNovaLicenca()" style="margin-top:12px">+ Criar primeira licença</button></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><br>Nenhuma licença cadastrada.<br><button class="btn btn-primary btn-sm" onclick="openNovaLicenca()" style="margin-top:12px">+ Criar primeira licença</button></div></td></tr>';
     return;
   }
   tbody.innerHTML = list.map(l => `
     <tr>
+      <td>${pgtoDot(l.status_pagamento||'pendente')}</td>
       <td><span style="font-family:monospace;font-size:12px;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:4px">${l.codigo}</span></td>
-      <td><strong>${l.nome}</strong></td>
-      <td style="font-size:12px;color:var(--muted)">${l.contato_nome||'—'}<br>${l.contato_email||''}</td>
+      <td><strong>${l.nome_fantasia||l.nome}</strong><br><span style="font-size:11px;color:var(--muted)">${l.contato_nome||''}</span></td>
       <td><span class="badge badge-${l.plano}">${l.plano}</span></td>
       <td>${l.total_alunos||0} / ${l.max_alunos}</td>
       <td style="color:var(--green)">R$ ${parseFloat(l.valor_mensal||0).toFixed(2)}</td>
       <td><span class="badge badge-${l.status}">${l.status}</span></td>
-      <td style="color:var(--muted);font-size:12px">${l.vencimento ? fmtDate(l.vencimento) : '—'}</td>
       <td>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" title="Entrar como gestor desta academia" onclick="impersonar('${l.codigo}','${(l.nome_fantasia||l.nome).replace(/'/g,'')}')" style="background:rgba(41,95,232,.12);border-color:rgba(41,95,232,.3);color:#295fe8">⚡ Entrar</button>
           <button class="btn btn-outline btn-sm" onclick="editLicenca(${l.id})">Editar</button>
+          <button class="btn btn-outline btn-sm" onclick="abrirPagamentos('${l.codigo}','${(l.nome_fantasia||l.nome).replace(/'/g,'')}')" style="color:var(--green);border-color:rgba(93,177,61,.3)">R$</button>
           <button class="btn btn-danger btn-sm" onclick="deleteLicenca(${l.id},'${l.nome}')">✕</button>
         </div>
       </td>
     </tr>`).join('');
+}
+
+// ── Impersonação — Mario entra como gestor de qualquer academia ──
+async function impersonar(licId, nome) {
+  if (!confirm(`Entrar no painel da academia "${nome}" como gestor?\n\nVocê terá acesso total. Token válido por 4 horas.`)) return;
+  try {
+    const r = await fetch(SERVER+'/admin/impersonate/'+licId, {
+      method:'POST', headers:{'Authorization':'Bearer '+adminToken}
+    });
+    const d = await r.json();
+    if (!r.ok) { alert('Erro: ' + d.error); return; }
+    // Abre academia.html com o token de impersonação
+    const url = 'academia.html?impersonate=' + encodeURIComponent(d.token) + '&academia=' + encodeURIComponent(nome);
+    window.open(url, '_blank');
+  } catch(e) { alert('Erro de conexão.'); }
+}
+
+// ── Financeiro ──────────────────────────────────────────────────
+var currentPgtoLicId = null;
+
+async function loadFinanceiro() {
+  try {
+    const d = await api('/admin/financeiro/dashboard');
+    const r = d.resumo || {};
+    document.getElementById('finKpis').innerHTML = [
+      ['Receita Mensal', 'R$ '+parseFloat(r.receita_mensal||0).toLocaleString('pt-BR',{minimumFractionDigits:2}), 'var(--green)'],
+      ['Em Dia', r.em_dia||0, '#5db13d'],
+      ['Atrasadas', r.atrasado||0, '#d7c414'],
+      ['Bloqueadas', r.bloqueado||0, '#d62d2d'],
+    ].map(([k,v,c]) => `<div class="stat-card"><div class="label">${k}</div><div class="value" style="color:${c}">${v}</div></div>`).join('');
+    const tb = document.getElementById('finTable');
+    const list = d.licencas || [];
+    if (!list.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Sem licenças.</td></tr>'; return; }
+    tb.innerHTML = list.map(l => `
+      <tr>
+        <td>${pgtoDot(l.status_pagamento)}</td>
+        <td><strong>${l.nome_fantasia||l.nome}</strong></td>
+        <td style="color:var(--green)">R$ ${parseFloat(l.valor_mensal||0).toFixed(2)}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.ultimo_pagamento ? fmtDate(l.ultimo_pagamento) : '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">Dia ${l.dia_vencimento||10}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.financeiro_nome||'—'}<br><span style="font-size:11px">${l.financeiro_email||''}</span></td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="abrirPagamentos('${l.codigo}','${(l.nome_fantasia||l.nome).replace(/'/g,'')}')">Ver pagamentos</button>
+            <button class="btn btn-outline btn-sm" onclick="openFinModal(${l.id},'${l.financeiro_email||''}','${l.financeiro_nome||''}',${l.dia_vencimento||10},${l.valor_mensal||0})">⚙️</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function abrirPagamentos(licId, nome) {
+  currentPgtoLicId = licId;
+  document.getElementById('pgtoTitle').textContent = 'Pagamentos — ' + nome;
+  showPage('pagamentos');
+  try {
+    const d = await api('/admin/pagamentos/' + licId);
+    const l = d.licenca || {};
+    document.getElementById('pgtoLicCard').innerHTML =
+      `<h3 style="margin-bottom:12px">Academia</h3>` +
+      [['Nome', l.nome_fantasia||l.nome||'—'],['Código',l.codigo],['Status', `<span class="badge badge-${l.status}">${l.status}</span>`],
+       ['Plano',l.plano],['Valor/mês','R$ '+parseFloat(l.valor_mensal||0).toFixed(2)]
+      ].map(([k,v])=>`<div class="detail-row"><span class="detail-lbl">${k}</span><span class="detail-val">${v}</span></div>`).join('');
+    document.getElementById('pgtoFinCard').innerHTML =
+      `<h3 style="margin-bottom:12px">Financeiro <button class="btn btn-outline btn-sm" style="float:right;margin-top:-4px" onclick="openFinModal(${l.id},'${l.financeiro_email||''}','${l.financeiro_nome||''}',${l.dia_vencimento||10},${l.valor_mensal||0})">Editar</button></h3>` +
+      [['Responsável',l.financeiro_nome||'—'],['E-mail',l.financeiro_email||'—'],
+       ['Vencimento','Dia '+( l.dia_vencimento||10)],['Status pagto', pgtoDot(l.status_pagamento||'pendente')]
+      ].map(([k,v])=>`<div class="detail-row"><span class="detail-lbl">${k}</span><span class="detail-val">${v}</span></div>`).join('');
+    const hist = d.pagamentos || [];
+    const tb = document.getElementById('pgtoHistTable');
+    if (!hist.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">Nenhum pagamento registrado ainda.</td></tr>';
+    } else {
+      tb.innerHTML = hist.map(p => `<tr>
+        <td style="font-size:12px">${fmtDate(p.data_pgto)}</td>
+        <td>${p.referencia||'—'}</td>
+        <td style="color:var(--green);font-weight:700">R$ ${parseFloat(p.valor).toFixed(2)}</td>
+        <td style="font-size:12px;color:var(--muted)">${p.metodo}</td>
+        <td><span class="badge badge-ativa">${p.status}</span></td>
+      </tr>`).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+
+function openRegistrarPagto() {
+  document.getElementById('pgtoLicId').value = currentPgtoLicId;
+  document.getElementById('pgtoValor').value = '';
+  document.getElementById('pgtoData').value = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  document.getElementById('pgtoRef').value = now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('pgtoMetodo').value = 'cartao';
+  document.getElementById('pgtoObs').value = '';
+  document.getElementById('modalPagto').style.display = 'flex';
+}
+function closePagtoModal() { document.getElementById('modalPagto').style.display = 'none'; }
+
+async function salvarPagamento() {
+  const licId = document.getElementById('pgtoLicId').value;
+  const valor = parseFloat(document.getElementById('pgtoValor').value);
+  if (!valor || valor <= 0) { alert('Informe o valor.'); return; }
+  const body = {
+    valor, data_pgto: document.getElementById('pgtoData').value,
+    referencia: document.getElementById('pgtoRef').value,
+    metodo: document.getElementById('pgtoMetodo').value,
+    obs: document.getElementById('pgtoObs').value,
+  };
+  const r = await fetch(SERVER+'/admin/pagamentos/'+licId, {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+adminToken},
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    closePagtoModal();
+    toast('Pagamento registrado! ✅');
+    abrirPagamentos(licId, document.getElementById('pgtoTitle').textContent.replace('Pagamentos — ',''));
+  } else { alert('Erro ao salvar.'); }
+}
+
+function openFinModal(id, email, nome, dia, valor) {
+  document.getElementById('finLicDbId').value = id;
+  document.getElementById('finEmail').value = email||'';
+  document.getElementById('finNome').value = nome||'';
+  document.getElementById('finDiaVenc').value = dia||10;
+  document.getElementById('finValor').value = valor||0;
+  document.getElementById('modalFinanceiro').style.display = 'flex';
+}
+function closeFinModal() { document.getElementById('modalFinanceiro').style.display = 'none'; }
+
+async function salvarFinanceiro() {
+  const id = document.getElementById('finLicDbId').value;
+  const body = {
+    financeiro_email: document.getElementById('finEmail').value,
+    financeiro_nome:  document.getElementById('finNome').value,
+    dia_vencimento:   parseInt(document.getElementById('finDiaVenc').value)||10,
+    valor_mensal:     parseFloat(document.getElementById('finValor').value)||0,
+  };
+  const r = await fetch(SERVER+'/admin/licencas/'+id+'/financeiro', {
+    method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+adminToken},
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    closeFinModal(); toast('Dados financeiros salvos!');
+    if (document.getElementById('page-financeiro').classList.contains('active')) loadFinanceiro();
+    else if (document.getElementById('page-pagamentos').classList.contains('active')) abrirPagamentos(currentPgtoLicId, document.getElementById('pgtoTitle').textContent.replace('Pagamentos — ',''));
+  } else { alert('Erro ao salvar.'); }
 }
 
 function filterLicencas(q) {
