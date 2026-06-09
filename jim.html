@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920,initial-scale=1">
+<title>ProRider Jim — Display</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08080a;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.08);
+  --accent:#ea860c;--accent2:#d62d2d;--green:#5db13d;--blue:#295fe8;--muted:rgba(255,255,255,.4);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'Inter',sans-serif;}
+
+/* ── Fundo animado ── */
+.bg-mesh{
+  position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(234,134,12,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(41,95,232,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(155,48,255,.04) 0%, transparent 70%);
+  animation: bgPulse 8s ease-in-out infinite alternate;
+}
+@keyframes bgPulse{to{opacity:.6}}
+
+/* ── Layout principal ── */
+.layout{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-columns:1fr 340px;grid-template-rows:80px 1fr;gap:0;}
+
+/* ── Header ── */
+.header{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;
+  border-bottom:1px solid var(--border);
+  background:rgba(8,8,10,.6);backdrop-filter:blur(12px);
+}
+.logo{
+  font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;
+  background:linear-gradient(135deg,#ffe033,#ea860c,#d62d2d);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  display:flex;align-items:center;gap:10px;
+}
+.logo .bolt{font-size:22px;-webkit-text-fill-color:#ea860c;}
+.header-right{display:flex;align-items:center;gap:24px;}
+.clock{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:#fff;line-height:1;}
+.date-str{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;text-align:right;margin-top:2px;}
+
+/* ── Main (centro) ── */
+.main{display:flex;align-items:center;justify-content:center;padding:40px;}
+
+/* ── Sidebar (grade do dia) ── */
+.sidebar{
+  border-left:1px solid var(--border);
+  background:rgba(8,8,10,.4);backdrop-filter:blur(8px);
+  display:flex;flex-direction:column;padding:20px 16px;gap:10px;overflow:hidden;
+}
+.sidebar-title{
+  font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);
+  text-transform:uppercase;padding:0 4px 8px;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.grade-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;}
+.grade-list::-webkit-scrollbar{width:3px;}
+.grade-list::-webkit-scrollbar-track{background:transparent;}
+.grade-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
+
+.aula-item{
+  border-radius:10px;padding:11px 13px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  position:relative;overflow:hidden;
+  transition:border-color .3s,background .3s;
+  flex-shrink:0;
+}
+.aula-item.proxima{
+  border-color:rgba(234,134,12,.5);
+  background:rgba(234,134,12,.07);
+}
+.aula-item.ativa{
+  border-color:rgba(93,177,61,.6);
+  background:rgba(93,177,61,.08);
+  animation:pulseBorder 2s ease-in-out infinite;
+}
+.aula-item.passada{opacity:.35;}
+@keyframes pulseBorder{
+  0%,100%{box-shadow:0 0 0 0 rgba(93,177,61,.2);}
+  50%{box-shadow:0 0 0 4px rgba(93,177,61,.08);}
+}
+.aula-hora{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;line-height:1;}
+.aula-nome{font-size:12px;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.aula-prof{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.aula-vagas{font-size:10px;margin-top:5px;display:flex;align-items:center;gap:5px;}
+.aula-bar{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.aula-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.aula-badge{
+  position:absolute;top:8px;right:8px;
+  font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 7px;border-radius:10px;
+}
+.badge-proxima{background:rgba(234,134,12,.2);color:var(--accent);}
+.badge-ativa{background:rgba(93,177,61,.2);color:var(--green);}
+.badge-auto{background:rgba(41,95,232,.2);color:var(--blue);}
+
+/* ── Estado: aguardando ── */
+.state-aguardando{text-align:center;max-width:600px;}
+.state-aguardando .pr-icon{font-size:80px;margin-bottom:20px;opacity:.3;}
+.state-aguardando .msg{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:4px;color:rgba(255,255,255,.15);}
+.state-aguardando .sub{font-size:14px;color:var(--muted);margin-top:8px;}
+
+/* ── Estado: countdown ── */
+.state-countdown{text-align:center;max-width:700px;}
+.countdown-label{font-size:12px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.countdown-timer{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(80px,12vw,160px);
+  letter-spacing:4px;line-height:.9;
+  background:linear-gradient(135deg,#fff,rgba(255,255,255,.6));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.countdown-timer.urgente{
+  background:linear-gradient(135deg,#ea860c,#d62d2d);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:timerPulse 1s ease-in-out infinite;
+}
+@keyframes timerPulse{50%{opacity:.7}}
+.aula-title-big{
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,4vw,48px);
+  letter-spacing:3px;color:#fff;margin-bottom:4px;
+}
+.aula-prof-big{font-size:15px;color:var(--muted);margin-bottom:20px;}
+.vagas-info{
+  display:inline-flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  border-radius:30px;padding:8px 20px;font-size:13px;
+  margin-bottom:28px;
+}
+.modo-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 16px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;
+  margin-bottom:28px;
+}
+.modo-badge.auto{background:rgba(93,177,61,.12);border:1px solid rgba(93,177,61,.3);color:var(--green);}
+.modo-badge.prof{background:rgba(234,134,12,.12);border:1px solid rgba(234,134,12,.3);color:var(--accent);}
+
+/* ── Estado: QR ── */
+.state-qr{text-align:center;max-width:700px;}
+.qr-wrap{
+  display:inline-block;background:#fff;padding:14px;border-radius:16px;
+  margin-bottom:16px;position:relative;
+}
+.qr-wrap img{display:block;}
+.qr-corner{
+  position:absolute;width:16px;height:16px;border-color:var(--accent);border-style:solid;
+  border-width:0;
+}
+.qr-corner.tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0;}
+.qr-corner.tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0;}
+.qr-corner.bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px;}
+.qr-corner.br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0;}
+
+.scan-hint{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.alunos-grid{
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+  max-width:500px;margin:0 auto;
+}
+.aluno-pill{
+  background:rgba(93,177,61,.12);border:1px solid rgba(93,177,61,.25);
+  border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;color:#fff;
+  animation:fadeIn .3s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+
+/* ── Estado: aula em andamento ── */
+.state-live{text-align:center;max-width:800px;width:100%;}
+.live-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(93,177,61,.12);border:1px solid rgba(93,177,61,.4);
+  border-radius:30px;padding:7px 20px;font-size:11px;font-weight:700;
+  letter-spacing:1.5px;color:var(--green);margin-bottom:20px;
+}
+.live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:blink 1s ease-in-out infinite;}
+@keyframes blink{50%{opacity:.2}}
+.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:20px;}
+.live-card{
+  background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;
+  padding:14px 10px;text-align:center;
+}
+.live-card.has-data{border-color:rgba(93,177,61,.3);background:rgba(93,177,61,.05);}
+.live-card .bike-num{font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;}
+.live-card .aluno-nome{font-size:12px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.live-card .watts{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--accent);line-height:1;}
+.live-card .watts-label{font-size:9px;color:var(--muted);}
+.live-card .mini-stats{display:flex;gap:8px;justify-content:center;margin-top:5px;font-size:10px;color:var(--muted);}
+.live-card .empty-spot{font-size:20px;opacity:.2;margin:10px 0;}
+
+/* ── Overlay: professor deve iniciar ── */
+.overlay-prof{
+  position:fixed;inset:0;z-index:100;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+}
+.overlay-prof.show{display:flex;}
+.overlay-card{
+  background:#13131a;border:1px solid rgba(234,134,12,.4);border-radius:24px;
+  padding:48px;text-align:center;max-width:500px;
+}
+.overlay-card .big{font-family:'Bebas Neue',sans-serif;font-size:64px;letter-spacing:4px;color:var(--accent);}
+.overlay-card p{font-size:14px;color:var(--muted);margin:12px 0 28px;}
+.btn-iniciar{
+  padding:18px 48px;border-radius:16px;border:none;
+  background:linear-gradient(135deg,var(--green),#3a8a28);
+  color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;
+  cursor:pointer;transition:transform .1s;
+}
+.btn-iniciar:active{transform:scale(.97);}
+
+/* ── Dev toolbar (só em desenvolvimento) ── */
+.dev-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:rgba(0,0,0,.9);border-top:1px solid rgba(255,255,255,.08);
+  padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.dev-bar button{
+  padding:5px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:11px;cursor:pointer;
+}
+.dev-bar button:hover{background:rgba(255,255,255,.12);color:#fff;}
+.dev-bar span{font-size:11px;color:rgba(255,255,255,.3);}
+</style>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <span class="bolt">⚡</span>
+      PRORIDER GYM
+    </div>
+    <div class="header-right">
+      <div>
+        <div class="clock" id="clockEl">00:00:00</div>
+        <div class="date-str" id="dateEl">—</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main area -->
+  <main class="main" id="mainArea">
+    <!-- preenchido pelo JS conforme o estado -->
+  </main>
+
+  <!-- Sidebar: grade do dia -->
+  <aside class="sidebar">
+    <div class="sidebar-title">📅 Grade de hoje</div>
+    <div class="grade-list" id="gradeList">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Carregando...</div>
+    </div>
+  </aside>
+
+</div><!-- /layout -->
+
+<!-- Overlay professor deve iniciar -->
+<div class="overlay-prof" id="overlayProf">
+  <div class="overlay-card">
+    <div class="big">PRONTO!</div>
+    <p>Cronômetro zerado. Pressione o botão para iniciar a aula.</p>
+    <button class="btn-iniciar" onclick="professorIniciaAula()">▶ INICIAR AULA</button>
+  </div>
+</div>
+
+<!-- Dev toolbar -->
+<div class="dev-bar" id="devBar">
+  <span>🛠 DEMO:</span>
+  <button onclick="setEstado('aguardando')">💤 Aguardando</button>
+  <button onclick="setEstado('countdown')">⏱ Countdown (11min)</button>
+  <button onclick="setEstado('countdown_urgente')">🔴 Countdown (2min)</button>
+  <button onclick="setEstado('qr')">📱 QR Aberto</button>
+  <button onclick="setEstado('qr_cheio')">🚫 QR Cheio</button>
+  <button onclick="setEstado('live')">🟢 Aula ao Vivo</button>
+  <button onclick="document.getElementById('devBar').style.display='none'">✕ Ocultar</button>
+  <span style="margin-left:auto">Pressione F para fullscreen</span>
+</div>
+
+<script>
+const SERVER = 'https://prorider-server-production-5784.up.railway.app';
+
+// ── MOCK DATA (usado no modo demo / quando API não responde) ──
+const MOCK_GRADE = [
+  { id:1, hora:'06:00', nome:'Spinning Iniciante',   professor_nome:'Prof. Ana',    vagas_max:20, reservadas:18, modo_inicio:'professor', status:'passada'  },
+  { id:2, hora:'07:00', nome:'Spinning Avançado',    professor_nome:'Prof. Carlos', vagas_max:20, reservadas:14, modo_inicio:'automatico', status:'passada'  },
+  { id:3, hora:'09:00', nome:'Bike & Burn',          professor_nome:'Prof. Luana',  vagas_max:20, reservadas:8,  modo_inicio:'professor', status:'proxima'  },
+  { id:4, hora:'11:00', nome:'Endurance Pro',        professor_nome:'Prof. Rafael', vagas_max:20, reservadas:3,  modo_inicio:'automatico', status:'futura'   },
+  { id:5, hora:'17:00', nome:'Power Hour',           professor_nome:'Prof. Beto',   vagas_max:20, reservadas:20, modo_inicio:'professor', status:'futura'   },
+  { id:6, hora:'19:00', nome:'Spinning Noturno',     professor_nome:'Prof. Ana',    vagas_max:20, reservadas:11, modo_inicio:'automatico', status:'futura'   },
+];
+
+const MOCK_PROXIMA = {
+  id:3, hora:'09:00', nome:'Bike & Burn', professor_nome:'Prof. Luana',
+  vagas_max:20, vagas_livres:12, modo_inicio:'professor',
+};
+
+const MOCK_ALUNOS_CONECTADOS = [
+  { bike_num:1, name:'João P.',    dados:{watts:245,rpm:88,hr:152} },
+  { bike_num:2, name:'Maria S.',   dados:{watts:198,rpm:82,hr:141} },
+  { bike_num:3, name:'Carlos M.',  dados:{watts:312,rpm:94,hr:168} },
+  { bike_num:4, name:'Ana L.',     dados:{watts:187,rpm:79,hr:138} },
+  { bike_num:5, name:'Pedro R.',   dados:{watts:276,rpm:91,hr:159} },
+  { bike_num:6, name:'Julia F.',   dados:{watts:221,rpm:85,hr:147} },
+  { bike_num:7, name:'Bruno T.',   dados:{watts:189,rpm:78,hr:133} },
+  { bike_num:8, name:'Carla N.',   dados:{watts:303,rpm:92,hr:165} },
+];
+
+// ── Estado global ──
+var estado = 'aguardando'; // aguardando | countdown | qr | live
+var aulaAtual = null;
+var sessaoAtual = null;
+var countdownSecs = 0;
+var countdownTimer = null;
+var alunosConectados = [];
+var modoDemo = true;
+
+// ── Clock ──
+function atualizarRelogio(){
+  var agora = new Date();
+  document.getElementById('clockEl').textContent =
+    agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('dateEl').textContent =
+    agora.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}).toUpperCase();
+}
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+// ── Renderizar grade lateral ──
+function renderGrade(aulas, proximaId){
+  var el = document.getElementById('gradeList');
+  if(!aulas || !aulas.length){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Nenhuma aula hoje.</div>';
+    return;
+  }
+  var agora = new Date();
+  var horaAgora = agora.getHours()*60 + agora.getMinutes();
+
+  el.innerHTML = aulas.map(function(a){
+    var partes = a.hora.split(':');
+    var minAula = parseInt(partes[0])*60 + parseInt(partes[1]);
+    var diff = minAula - horaAgora;
+    var cls = '';
+    var badge = '';
+    if(a.id === proximaId || diff >= 0 && diff <= 10){
+      cls = 'proxima'; badge = '<div class="aula-badge badge-proxima">PRÓXIMA</div>';
+    } else if(estado === 'live' && a.id === (aulaAtual && aulaAtual.id)){
+      cls = 'ativa'; badge = '<div class="aula-badge badge-ativa">● AO VIVO</div>';
+    } else if(diff < -60){
+      cls = 'passada';
+    }
+    // Modo badge
+    var modoBadge = a.modo_inicio === 'automatico'
+      ? '<div class="aula-badge badge-auto" style="top:auto;bottom:8px;right:8px">▶ AUTO</div>'
+      : '';
+
+    var reservadas = a.reservadas || 0;
+    var vagas = a.vagas_max || 20;
+    var pct = Math.min(100, Math.round(reservadas/vagas*100));
+    var corBar = pct>=90?'#d62d2d':pct>=60?'#ea860c':'#5db13d';
+
+    return '<div class="aula-item '+cls+'">'
+      + badge
+      + '<div class="aula-hora" style="color:'+(cls==='proxima'?'var(--accent)':cls==='ativa'?'var(--green)':'#fff')+'">'+a.hora.slice(0,5)+'</div>'
+      + '<div class="aula-nome">'+a.nome+'</div>'
+      + '<div class="aula-prof">👨‍🏫 '+(a.professor_nome||'—')+'</div>'
+      + '<div class="aula-vagas">'
+      +   '<div class="aula-bar"><div class="aula-bar-fill" style="width:'+pct+'%;background:'+corBar+'"></div></div>'
+      +   '<span style="font-size:10px;color:'+corBar+';font-weight:700;flex-shrink:0">'+reservadas+'/'+vagas+'</span>'
+      + '</div>'
+      + modoBadge
+      + '</div>';
+  }).join('');
+}
+
+// ── Renderizar área principal ──
+function renderMain(){
+  var main = document.getElementById('mainArea');
+
+  if(estado === 'aguardando'){
+    main.innerHTML =
+      '<div class="state-aguardando">'
+      + '<div class="pr-icon">⚡</div>'
+      + '<div class="msg">AGUARDANDO PRÓXIMA AULA</div>'
+      + '<div class="sub">A tela de QR aparecerá automaticamente 10 minutos antes da aula começar.</div>'
+      + '</div>';
+    document.getElementById('overlayProf').classList.remove('show');
+    return;
+  }
+
+  if(estado === 'countdown' || estado === 'countdown_urgente'){
+    var aula = aulaAtual || MOCK_PROXIMA;
+    var secs = countdownSecs;
+    var mins = Math.floor(Math.abs(secs)/60);
+    var ss   = Math.abs(secs)%60;
+    var timerStr = (secs<0?'-':'')+String(mins).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+    var urgente = secs <= 120;
+    main.innerHTML =
+      '<div class="state-countdown">'
+      + '<div class="countdown-label">PRÓXIMA AULA EM</div>'
+      + '<div class="countdown-timer'+(urgente?' urgente':'')+'">'+timerStr+'</div>'
+      + '<div style="margin-top:20px">'
+      + '<div class="aula-title-big">'+aula.nome+'</div>'
+      + '<div class="aula-prof-big">👨‍🏫 '+(aula.professor_nome||'—')+'</div>'
+      + '</div>'
+      + '<div class="vagas-info">🚲 '+(aula.vagas_livres||aula.vagas_max||'—')+' vagas disponíveis</div>'
+      + (aula.modo_inicio==='automatico'
+          ? '<div class="modo-badge auto">▶ &nbsp;INÍCIO AUTOMÁTICO</div>'
+          : '<div class="modo-badge prof">⏸ &nbsp;PROFESSOR INICIARÁ A AULA</div>')
+      + '<div style="font-size:12px;color:var(--muted)">A tela de QR abrirá em '
+      + (secs > 600 ? 'alguns minutos' : 'instantes')+'</div>'
+      + '</div>';
+    document.getElementById('overlayProf').classList.remove('show');
+    return;
+  }
+
+  if(estado === 'qr' || estado === 'qr_cheio'){
+    var aula = aulaAtual || MOCK_PROXIMA;
+    var cheio = (estado === 'qr_cheio');
+    var qrToken = (sessaoAtual && sessaoAtual.token) || 'demo_token_abc123';
+    var qrPayload = 'prorider://sessao?token='+qrToken+'&local=192.168.1.5:3001';
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(qrPayload)+'&bgcolor=ffffff&color=000000';
+
+    var secs = countdownSecs;
+    var mins = Math.floor(Math.abs(secs)/60);
+    var ss   = Math.abs(secs)%60;
+    var timerStr = (secs<0?'-':'')+String(mins).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+    var urgente = secs <= 30;
+
+    main.innerHTML =
+      '<div class="state-qr">'
+      + '<div style="display:flex;align-items:flex-start;gap:48px;justify-content:center;flex-wrap:wrap">'
+
+      // Lado esquerdo: info da aula + countdown
+      + '<div style="flex:1;min-width:260px;text-align:left">'
+      + '<div style="font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Iniciando em</div>'
+      + '<div class="countdown-timer'+(urgente?' urgente':'')+'" style="font-size:72px">'+timerStr+'</div>'
+      + '<div style="margin-top:16px">'
+      + '<div class="aula-title-big" style="font-size:36px">'+aula.nome+'</div>'
+      + '<div class="aula-prof-big">👨‍🏫 '+(aula.professor_nome||'—')+'</div>'
+      + '</div>'
+      + '<div style="margin-top:16px">'
+      + (cheio
+        ? '<div style="background:rgba(214,45,45,.1);border:1px solid rgba(214,45,45,.3);border-radius:10px;padding:10px 16px;font-size:13px;color:#d62d2d;font-weight:700">🚫 SALA CHEIA — Aguarde uma vaga</div>'
+        : '<div class="vagas-info" style="display:inline-flex">🚲 '+(aula.vagas_livres||aula.vagas_max||'—')+' vagas disponíveis</div>')
+      + '</div>'
+      + '<div style="margin-top:12px">'
+      + (aula.modo_inicio==='automatico'
+          ? '<div class="modo-badge auto">▶ &nbsp;INÍCIO AUTOMÁTICO</div>'
+          : '<div class="modo-badge prof">⏸ &nbsp;PROFESSOR INICIARÁ A AULA</div>')
+      + '</div>'
+
+      // Alunos já conectados
+      + '<div style="margin-top:16px">'
+      + '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px">CONECTADOS</div>'
+      + '<div class="alunos-grid" style="justify-content:flex-start" id="alunosGrid">'
+      + alunosConectados.map(function(a){ return '<div class="aluno-pill">🚲'+a.bike_num+' '+a.name+'</div>'; }).join('')
+      + (alunosConectados.length === 0 ? '<div style="font-size:12px;color:var(--muted)">Aguardando conexões...</div>' : '')
+      + '</div></div>'
+      + '</div>'
+
+      // Lado direito: QR
+      + '<div style="text-align:center;flex-shrink:0">'
+      + (cheio
+        ? '<div style="width:228px;height:228px;background:rgba(255,255,255,.03);border:2px dashed rgba(255,255,255,.1);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.3">🔒</div>'
+        : '<div class="qr-wrap"><img src="'+qrUrl+'" width="200" height="200"><div class="qr-corner tl"></div><div class="qr-corner tr"></div><div class="qr-corner bl"></div><div class="qr-corner br"></div></div>')
+      + '<div class="scan-hint">'+(cheio?'Sala lotada':'Abra o app ProRider e<br>aponte para o QR code')+'</div>'
+      + '</div>'
+
+      + '</div>'
+      + '</div>';
+    document.getElementById('overlayProf').classList.remove('show');
+    return;
+  }
+
+  if(estado === 'live'){
+    var aula = aulaAtual || MOCK_PROXIMA;
+    var maxBikes = (sessaoAtual && sessaoAtual.max_conexoes) || 20;
+    var spots = [];
+    for(var i=1;i<=maxBikes;i++){
+      var aluno = alunosConectados.find(function(a){return a.bike_num===i;});
+      spots.push({num:i, aluno:aluno||null});
+    }
+    main.innerHTML =
+      '<div class="state-live">'
+      + '<div class="live-badge"><div class="live-dot"></div>AULA AO VIVO</div>'
+      + '<div class="aula-title-big">'+aula.nome+' <span style="color:var(--muted);font-size:22px">— '+(aula.professor_nome||'—')+'</span></div>'
+      + '<div class="live-grid">'
+      + spots.map(function(s){
+          if(!s.aluno) return '<div class="live-card"><div class="bike-num">BIKE '+s.num+'</div><div class="empty-spot">🚲</div><div style="font-size:10px;color:var(--muted)">LIVRE</div></div>';
+          var d = s.aluno.dados||{};
+          var w = d.watts||0;
+          return '<div class="live-card has-data">'
+            + '<div class="bike-num">BIKE '+s.num+'</div>'
+            + '<div class="aluno-nome">'+s.aluno.name+'</div>'
+            + '<div class="watts">'+w+'<span style="font-size:14px">W</span></div>'
+            + '<div class="watts-label">POTÊNCIA</div>'
+            + '<div class="mini-stats"><span>'+(d.rpm||'—')+' rpm</span><span>❤ '+(d.hr||'—')+'</span></div>'
+            + '</div>';
+        }).join('')
+      + '</div>'
+      + '</div>';
+    document.getElementById('overlayProf').classList.remove('show');
+    return;
+  }
+}
+
+// ── Controle de estado ──
+function setEstado(novoEstado, aula, secs){
+  estado = novoEstado;
+  if(aula) aulaAtual = aula;
+  if(secs !== undefined) countdownSecs = secs;
+
+  // Demo: preenche dados mock
+  if(modoDemo){
+    aulaAtual = aulaAtual || MOCK_PROXIMA;
+    if(estado === 'countdown')          countdownSecs = 660;  // 11min
+    if(estado === 'countdown_urgente')  countdownSecs = 118;  // 1:58
+    if(estado === 'live') alunosConectados = MOCK_ALUNOS_CONECTADOS;
+    if(estado === 'qr')   alunosConectados = MOCK_ALUNOS_CONECTADOS.slice(0,3);
+    if(estado === 'qr_cheio'){ alunosConectados = MOCK_ALUNOS_CONECTADOS; aulaAtual = {...MOCK_PROXIMA, vagas_livres:0, vagas_max:8}; }
+  }
+
+  clearInterval(countdownTimer);
+  if((estado === 'countdown' || estado === 'countdown_urgente' || estado === 'qr') && countdownSecs > 0){
+    countdownTimer = setInterval(function(){
+      countdownSecs--;
+      if(countdownSecs <= 600 && estado === 'countdown') estado = 'qr';
+      if(countdownSecs <= 120 && estado === 'countdown_urgente') estado = 'countdown_urgente';
+      if(countdownSecs <= 0){
+        clearInterval(countdownTimer);
+        // Modo automático → vai direto para live
+        if(aulaAtual && aulaAtual.modo_inicio === 'automatico'){
+          setEstado('live');
+        } else {
+          // Modo professor → mostra overlay
+          document.getElementById('overlayProf').classList.add('show');
+        }
+        return;
+      }
+      renderMain();
+    },1000);
+  }
+
+  var proxId = aulaAtual ? aulaAtual.id : null;
+  renderGrade(MOCK_GRADE, proxId);
+  renderMain();
+}
+
+function professorIniciaAula(){
+  document.getElementById('overlayProf').classList.remove('show');
+  setEstado('live');
+}
+
+// ── Fullscreen ──
+document.addEventListener('keydown', function(e){
+  if(e.key==='f'||e.key==='F'){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+  if(e.key==='Escape' && document.getElementById('overlayProf').classList.contains('show')){
+    // não faz nada — professor deve pressionar o botão
+  }
+});
+
+// ── Inicialização ──
+// Tenta buscar grade real do servidor
+// (em produção o mini PC teria o token do gestor salvo localmente)
+var gestorToken = localStorage.getItem('pr_gestor_token') || sessionStorage.getItem('pr_imp_token');
+
+async function tentarCarregarDaAPI(){
+  if(!gestorToken){ iniciarDemo(); return; }
+  try{
+    var [grade, proxima] = await Promise.all([
+      fetch(SERVER+'/gestor/agenda',{headers:{Authorization:'Bearer '+gestorToken}}).then(r=>r.json()),
+      fetch(SERVER+'/gestor/proxima-aula',{headers:{Authorization:'Bearer '+gestorToken}}).then(r=>r.json()),
+    ]);
+    modoDemo = false;
+
+    // Adicionar reservadas mock (API retorna vagas_max mas reservas viriam do histórico)
+    var gradeHoje = (Array.isArray(grade)?grade:[]).filter(function(a){
+      // filtrar pelo dia da semana atual
+      return a.dia_semana === new Date().getDay();
+    });
+
+    var proxAula = proxima.proxima_aula || null;
+    sessaoAtual = proxima.sessao || null;
+
+    if(proxAula){
+      aulaAtual = proxAula;
+      var segs = Math.round(proxAula.segundos_ate_aula);
+      if(segs > 600)        setEstado('countdown', proxAula, segs);
+      else if(segs >= -300) setEstado('qr', proxAula, Math.max(0,segs));
+      else                   setEstado('live', proxAula, 0);
+    } else {
+      setEstado('aguardando');
+    }
+    renderGrade(gradeHoje, proxAula && proxAula.id);
+  }catch(e){
+    console.warn('API indisponível, usando dados demo:', e.message);
+    iniciarDemo();
+  }
+}
+
+function iniciarDemo(){
+  modoDemo = true;
+  renderGrade(MOCK_GRADE, 3);
+  setEstado('countdown'); // começa no countdown pra mostrar o fluxo
+}
+
+tentarCarregarDaAPI();
+
+// Polling: a cada 60s verifica próxima aula (igual o mini PC real faria)
+setInterval(function(){
+  if(!modoDemo && gestorToken) tentarCarregarDaAPI();
+}, 60000);
+</script>
+</body>
+</html>
