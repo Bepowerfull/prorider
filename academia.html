@@ -1019,8 +1019,15 @@ async function loadGrade() {
   // Atualiza indicador de capacidade na aba de grade
   const capEl = document.getElementById('gradeCapacidade');
   if (capEl) {
-    if (licConfig.max_bikes > 0) {
-      capEl.textContent = `🚲 Sala: ${licConfig.max_bikes} bikes`;
+    const mb = licConfig.max_bikes || 0;
+    const bd = licConfig.bikes_disponiveis || mb;
+    if (mb > 0) {
+      const cor = bd < mb ? '#f59e0b' : '#295fe8';  // amarelo se há bikes fora de serviço
+      const extra = bd < mb ? ` (${mb - bd} fora de serviço)` : '';
+      capEl.innerHTML = `🚲 ${bd} bikes disponíveis${extra}`;
+      capEl.style.background  = bd < mb ? 'rgba(245,158,11,.1)'  : 'rgba(41,95,232,.1)';
+      capEl.style.borderColor = bd < mb ? 'rgba(245,158,11,.3)'  : 'rgba(41,95,232,.25)';
+      capEl.style.color       = cor;
       capEl.style.display = 'inline-block';
     } else {
       capEl.style.display = 'none';
@@ -1083,12 +1090,16 @@ function aulaCard(a) {
 
 function _applyMaxBikes(defaultVal) {
   const mb = licConfig.max_bikes || 0;
+  const bd = licConfig.bikes_disponiveis || mb;  // teto operacional atual
+  const teto = bd > 0 ? bd : mb;
   const fv = document.getElementById('fVagas');
   const hint = document.getElementById('fVagasHint');
-  if (mb > 0) {
-    fv.max = mb;
-    fv.value = Math.min(parseInt(defaultVal)||mb, mb);
-    hint.textContent = `(máx: ${mb} bikes)`;
+  if (teto > 0) {
+    fv.max = teto;
+    fv.value = Math.min(parseInt(defaultVal)||teto, teto);
+    hint.textContent = bd < mb
+      ? `(máx: ${teto} bikes — ${mb-bd} fora de serviço)`
+      : `(máx: ${teto} bikes)`;
   } else {
     fv.max = 200;
     fv.value = defaultVal || 20;
