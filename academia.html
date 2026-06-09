@@ -281,7 +281,6 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="gradeCapacidade" style="display:none;background:rgba(41,95,232,.1);border:1px solid rgba(41,95,232,.25);color:#295fe8;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:.5px"></span>
-        <button onclick="iniciarSessaoAoVivo()" style="padding:9px 18px;border-radius:10px;border:1px solid rgba(93,177,61,.4);background:rgba(93,177,61,.1);color:var(--green);font-size:13px;font-weight:700;cursor:pointer">🖥️ Ao Vivo</button>
         <button onclick="openNovaAula()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">+ Nova Aula</button>
       </div>
     </div>
@@ -356,6 +355,17 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
           </div>
         </div>
         <div class="fg"><label>Sala (opcional)</label><input id="fSala" placeholder="Sala 1, Studio B..."></div>
+      </div>
+      <!-- Modo de início — define comportamento do ProRider Jim (mini PC) -->
+      <div class="fg" style="margin-top:12px">
+        <label>🖥️ Início da aula no mini PC</label>
+        <select id="fModoInicio" style="padding:10px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:#fff;font-size:13px;width:100%">
+          <option value="professor">⏸ Aguardar professor pressionar Iniciar</option>
+          <option value="automatico">▶ Automático — inicia quando o cronômetro chegar a zero</option>
+        </select>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">
+          O mini PC exibe a tela de QR automaticamente 10 min antes da aula começar.
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:20px">
         <button onclick="salvarAula()" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:700;cursor:pointer" id="btnSalvarAula">Salvar</button>
@@ -1111,7 +1121,7 @@ function aulaCard(a) {
       </div>
       <div style="text-align:right">
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--accent)">${a.hora.slice(0,5)}</div>
-        <div style="font-size:10px;color:var(--muted)">${a.duracao_min} min${a.sala?' · '+a.sala:''}</div>
+        <div style="font-size:10px;color:var(--muted)">${a.duracao_min} min${a.sala?' · '+a.sala:''}${a.modo_inicio==='automatico'?' · ▶ Auto':' · ⏸ Prof'}</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -1157,6 +1167,7 @@ function openNovaAula() {
   document.getElementById('fDur').value = '50';
   _applyMaxBikes(licConfig.max_bikes || 20);
   document.getElementById('fSala').value = '';
+  document.getElementById('fModoInicio').value = 'professor';
   document.getElementById('aulaErr').style.display = 'none';
   document.getElementById('aulaModal').style.display = 'flex';
 }
@@ -1173,6 +1184,7 @@ function openEditAula(id) {
   document.getElementById('fDur').value = a.duracao_min;
   _applyMaxBikes(a.vagas_max);
   document.getElementById('fSala').value = a.sala || '';
+  document.getElementById('fModoInicio').value = a.modo_inicio || 'professor';
   document.getElementById('aulaErr').style.display = 'none';
   document.getElementById('aulaModal').style.display = 'flex';
 }
@@ -1265,8 +1277,9 @@ async function salvarAula() {
     dia_semana: parseInt(document.getElementById('fDia').value),
     hora: document.getElementById('fHora').value,
     duracao_min: parseInt(document.getElementById('fDur').value),
-    vagas_max: parseInt(document.getElementById('fVagas').value),
-    sala: document.getElementById('fSala').value.trim() || null,
+    vagas_max:    parseInt(document.getElementById('fVagas').value),
+    sala:         document.getElementById('fSala').value.trim() || null,
+    modo_inicio:  document.getElementById('fModoInicio').value,
   };
   const errEl = document.getElementById('aulaErr');
   if (!body.nome) { errEl.textContent = 'Nome obrigatório.'; errEl.style.display = 'block'; return; }
