@@ -281,12 +281,52 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="gradeCapacidade" style="display:none;background:rgba(41,95,232,.1);border:1px solid rgba(41,95,232,.25);color:#295fe8;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:.5px"></span>
+        <button onclick="iniciarSessaoAoVivo()" style="padding:9px 18px;border-radius:10px;border:1px solid rgba(93,177,61,.4);background:rgba(93,177,61,.1);color:var(--green);font-size:13px;font-weight:700;cursor:pointer">🖥️ Ao Vivo</button>
         <button onclick="openNovaAula()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">+ Nova Aula</button>
       </div>
     </div>
 
     <!-- Grade por dia da semana -->
     <div id="gradeWrap"></div>
+  </div>
+
+  <!-- MODAL SESSÃO AO VIVO -->
+  <div id="sessaoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;align-items:center;justify-content:center">
+    <div style="background:var(--panel);border:1px solid rgba(93,177,61,.3);border-radius:20px;padding:32px;width:100%;max-width:480px;margin:16px;text-align:center">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:17px;font-weight:700">🖥️ Aula ao Vivo</div>
+        <button onclick="fecharSessaoModal()" style="background:rgba(255,255,255,.06);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+      </div>
+
+      <!-- Estado: nenhuma sessão ativa -->
+      <div id="sessaoEstadoNenhuma">
+        <div style="font-size:40px;margin-bottom:12px">📡</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Inicie uma sessão ao vivo. Os alunos escaneiam o QR com o app ProRider e entram automaticamente na tela.</p>
+        <div class="fg" style="text-align:left;margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">Nome da Aula</label>
+          <input id="sessaoNomeAula" placeholder="Ex: Spinning Avançado — Manhã" style="width:100%;padding:11px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:#fff;font-size:14px">
+        </div>
+        <div class="fg" style="text-align:left;margin-bottom:20px">
+          <label style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">Professor</label>
+          <input id="sessaoProfessor" placeholder="Nome do professor" style="width:100%;padding:11px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:#fff;font-size:14px">
+        </div>
+        <button onclick="criarSessaoAoVivo()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--green),#3a8a28);color:#fff;font-size:15px;font-weight:700;cursor:pointer">▶ Iniciar Sessão</button>
+      </div>
+
+      <!-- Estado: sessão ativa com QR -->
+      <div id="sessaoEstadoAtiva" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--green);letter-spacing:1px;margin-bottom:4px">● SESSÃO ATIVA</div>
+        <div id="sessaoNomeDisplay" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+        <div id="sessaoLimiteDisplay" style="font-size:12px;color:var(--muted);margin-bottom:16px"></div>
+        <!-- QR Code gerado via API qrserver.com -->
+        <div id="sessaoQRWrap" style="display:inline-block;background:#fff;padding:12px;border-radius:12px;margin-bottom:16px">
+          <img id="sessaoQRImg" src="" width="180" height="180" alt="QR Code">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:16px">Alunos escaneiam com o app ProRider</div>
+        <div id="sessaoConectadosInfo" style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:16px">0 alunos conectados</div>
+        <button onclick="encerrarSessaoAtiva()" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(214,45,45,.4);background:rgba(214,45,45,.08);color:var(--accent2);font-size:14px;font-weight:700;cursor:pointer">⏹ Encerrar Sessão</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL NOVA AULA / EDITAR -->
@@ -1138,6 +1178,85 @@ function openEditAula(id) {
 }
 
 function closeAulaModal() { document.getElementById('aulaModal').style.display = 'none'; }
+
+// ── Sessão ao Vivo ────────────────────────────────────────────
+var sessaoAtiva = null;
+var sessaoPollingTimer = null;
+
+async function iniciarSessaoAoVivo() {
+  // Verificar se já existe sessão ativa
+  try {
+    const d = await api('/gestor/sessao/ativa');
+    if (d.sessao) {
+      sessaoAtiva = d.sessao;
+      mostrarSessaoAtiva(d.sessao, d.conexoes || [], d.total || 0);
+    } else {
+      document.getElementById('sessaoEstadoNenhuma').style.display = 'block';
+      document.getElementById('sessaoEstadoAtiva').style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById('sessaoEstadoNenhuma').style.display = 'block';
+    document.getElementById('sessaoEstadoAtiva').style.display = 'none';
+  }
+  document.getElementById('sessaoModal').style.display = 'flex';
+}
+
+async function criarSessaoAoVivo() {
+  const nomeAula   = document.getElementById('sessaoNomeAula').value.trim() || 'Aula ao Vivo';
+  const professor  = document.getElementById('sessaoProfessor').value.trim() || null;
+  try {
+    const d = await api('/gestor/sessao', {
+      method: 'POST',
+      body: JSON.stringify({ nome_aula: nomeAula, professor })
+    });
+    if (d.error) { alert(d.error); return; }
+    sessaoAtiva = d.sessao;
+    mostrarSessaoAtiva(d.sessao, [], 0);
+    iniciarPolling();
+  } catch(e) { alert('Erro ao criar sessão.'); }
+}
+
+function mostrarSessaoAtiva(sessao, conexoes, total) {
+  document.getElementById('sessaoEstadoNenhuma').style.display = 'none';
+  document.getElementById('sessaoEstadoAtiva').style.display = 'block';
+  document.getElementById('sessaoNomeDisplay').textContent = sessao.nome_aula || 'Aula ao Vivo';
+  document.getElementById('sessaoLimiteDisplay').textContent = `Máx: ${sessao.max_conexoes} conexões (bikes na licença)`;
+  document.getElementById('sessaoConectadosInfo').textContent = `${total} aluno${total !== 1 ? 's' : ''} conectado${total !== 1 ? 's' : ''}`;
+  // Gerar QR via API pública (sem depender de biblioteca externa)
+  const qrPayload = `prorider://sessao?token=${sessao.token}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrPayload)}&bgcolor=ffffff&color=000000`;
+  document.getElementById('sessaoQRImg').src = qrUrl;
+}
+
+function iniciarPolling() {
+  clearInterval(sessaoPollingTimer);
+  sessaoPollingTimer = setInterval(async () => {
+    if (!sessaoAtiva) { clearInterval(sessaoPollingTimer); return; }
+    try {
+      const d = await api('/gestor/sessao/ativa');
+      if (d.sessao) {
+        document.getElementById('sessaoConectadosInfo').textContent =
+          `${d.total} aluno${d.total !== 1 ? 's' : ''} conectado${d.total !== 1 ? 's' : ''}`;
+      }
+    } catch(e) {}
+  }, 5000);
+}
+
+async function encerrarSessaoAtiva() {
+  if (!sessaoAtiva) return;
+  if (!confirm('Encerrar a sessão ao vivo?')) return;
+  try {
+    await api(`/gestor/sessao/${sessaoAtiva.id}`, { method: 'DELETE' });
+    sessaoAtiva = null;
+    clearInterval(sessaoPollingTimer);
+    fecharSessaoModal();
+  } catch(e) { alert('Erro ao encerrar.'); }
+}
+
+function fecharSessaoModal() {
+  document.getElementById('sessaoModal').style.display = 'none';
+  clearInterval(sessaoPollingTimer);
+}
 
 async function salvarAula() {
   const body = {
