@@ -153,6 +153,7 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
   <div class="tabs">
     <div class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</div>
     <div class="tab" onclick="showTab('alunos')" id="tab-alunos">Alunos</div>
+    <div class="tab" onclick="showTab('grade')" id="tab-grade">📅 Grade</div>
     <div class="tab" onclick="showTab('leaderboard')" id="tab-leaderboard">🏆 Ranking</div>
     <div class="tab" onclick="showTab('relatorio')" id="tab-relatorio">📊 Relatórios</div>
     <div class="tab" onclick="showTab('emails')" id="tab-emails">E-mails</div>
@@ -269,6 +270,69 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
     </div>
   </div>
 
+
+  <!-- GRADE -->
+  <div class="page content" id="page-grade">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px">Grade de Aulas</div>
+        <div style="font-size:12px;color:var(--muted)">Horários fixos semanais da academia</div>
+      </div>
+      <button onclick="openNovaAula()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">+ Nova Aula</button>
+    </div>
+
+    <!-- Grade por dia da semana -->
+    <div id="gradeWrap"></div>
+  </div>
+
+  <!-- MODAL NOVA AULA / EDITAR -->
+  <div id="aulaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:420px;margin:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:16px;font-weight:700" id="aulaModalTitle">Nova Aula</div>
+        <button onclick="closeAulaModal()" style="background:rgba(255,255,255,.06);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>Nome da aula</label><input id="fNome" placeholder="Indoor Cycle, Power Bike..."></div>
+        <div class="fg"><label>Professor</label><input id="fProf" placeholder="Nome do professor"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="fg"><label>Dia da semana</label>
+            <select id="fDia" style="padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:#fff;font-size:14px;outline:none">
+              <option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option>
+              <option value="4">Quinta</option><option value="5">Sexta</option><option value="6">Sábado</option><option value="0">Domingo</option>
+            </select>
+          </div>
+          <div class="fg"><label>Horário</label><input id="fHora" type="time" value="07:00"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="fg"><label>Duração (min)</label><input id="fDur" type="number" value="50" min="20" max="120"></div>
+          <div class="fg"><label>Vagas</label><input id="fVagas" type="number" value="20" min="1" max="100"></div>
+        </div>
+        <div class="fg"><label>Sala (opcional)</label><input id="fSala" placeholder="Sala 1, Studio B..."></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button onclick="salvarAula()" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:700;cursor:pointer" id="btnSalvarAula">Salvar</button>
+        <button onclick="closeAulaModal()" style="padding:11px 20px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:14px;cursor:pointer">Cancelar</button>
+      </div>
+      <div id="aulaErr" style="color:#d62d2d;font-size:12px;text-align:center;margin-top:8px;display:none"></div>
+    </div>
+  </div>
+
+  <!-- MODAL LISTA DE RESERVAS (professor view) -->
+  <div id="reservasModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:flex-end;justify-content:center">
+    <div style="background:var(--panel);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;padding:24px 20px 32px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:16px;font-weight:700" id="resModalTitle">Lista de Reservas</div>
+        <button onclick="closeReservasModal()" style="background:rgba(255,255,255,.06);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="resModalSub"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <input type="date" id="resData" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:13px" onchange="loadReservas()">
+        <button onclick="openWalkin()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#fff;font-size:12px;cursor:pointer">+ Walk-in</button>
+      </div>
+      <div id="resList"></div>
+    </div>
+  </div>
 
   <!-- LEADERBOARD -->
   <div class="page content" id="page-leaderboard">
@@ -435,6 +499,7 @@ function showTab(t) {
   document.getElementById('tab-' + t).classList.add('active');
   document.getElementById('alunoDetail').style.display = 'none';
   if (t === 'alunos') loadAlunos();
+  if (t === 'grade') loadGrade();
   if (t === 'leaderboard') loadLeaderboard();
   if (t === 'relatorio') loadRelatorio();
 }
@@ -540,6 +605,196 @@ function fmtSeg(s) {
   if (!s) return '—';
   var m = Math.floor(s/60), sec = s%60;
   return m+'m '+(sec<10?'0':'')+sec+'s';
+}
+
+// ── Grade ──
+const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DIAS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+var gradeData = [];
+var editingAulaId = null;
+var reservasAgendaId = null;
+
+async function loadGrade() {
+  gradeData = await api('/gestor/agenda');
+  renderGrade();
+}
+
+function renderGrade() {
+  const wrap = document.getElementById('gradeWrap');
+  if (!gradeData.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)"><div style="font-size:40px;margin-bottom:12px">📅</div><p>Nenhuma aula cadastrada ainda.<br>Clique em "+ Nova Aula" para começar.</p></div>';
+    return;
+  }
+  // agrupar por dia
+  const byDay = {};
+  for (let d=0;d<7;d++) byDay[d] = [];
+  gradeData.forEach(a => byDay[a.dia_semana].push(a));
+  const order = [1,2,3,4,5,6,0]; // Seg→Dom
+  wrap.innerHTML = order.filter(d => byDay[d].length > 0).map(d => `
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">${DIAS_FULL[d]}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
+        ${byDay[d].map(a => aulaCard(a)).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function aulaCard(a) {
+  const vagas = a.vagas_max || 20;
+  const reservas = parseInt(a.reservas_hoje||0);
+  const pct = Math.round(reservas/vagas*100);
+  const cor = pct >= 90 ? 'var(--accent2)' : pct >= 60 ? 'var(--accent)' : 'var(--green)';
+  return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <div>
+        <div style="font-size:15px;font-weight:700">${a.nome}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">👨‍🏫 ${a.professor_nome||'—'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--accent)">${a.hora.slice(0,5)}</div>
+        <div style="font-size:10px;color:var(--muted)">${a.duracao_min} min${a.sala?' · '+a.sala:''}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${cor};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${cor}">${reservas}/${vagas}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="openReservas(${a.id},'${a.nome}','${a.hora.slice(0,5)}')" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#fff;font-size:12px;cursor:pointer">👥 Ver lista</button>
+      <button onclick="openEditAula(${a.id})" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;cursor:pointer">✏️</button>
+      <button onclick="deleteAula(${a.id})" style="padding:7px 10px;border-radius:8px;border:1px solid rgba(214,45,45,.3);background:rgba(214,45,45,.06);color:var(--accent2);font-size:12px;cursor:pointer">🗑</button>
+    </div>
+  </div>`;
+}
+
+function openNovaAula() {
+  editingAulaId = null;
+  document.getElementById('aulaModalTitle').textContent = 'Nova Aula';
+  document.getElementById('fNome').value = '';
+  document.getElementById('fProf').value = '';
+  document.getElementById('fDia').value = new Date().getDay() || 1;
+  document.getElementById('fHora').value = '07:00';
+  document.getElementById('fDur').value = '50';
+  document.getElementById('fVagas').value = '20';
+  document.getElementById('fSala').value = '';
+  document.getElementById('aulaErr').style.display = 'none';
+  document.getElementById('aulaModal').style.display = 'flex';
+}
+
+function openEditAula(id) {
+  const a = gradeData.find(x => x.id === id);
+  if (!a) return;
+  editingAulaId = id;
+  document.getElementById('aulaModalTitle').textContent = 'Editar Aula';
+  document.getElementById('fNome').value = a.nome;
+  document.getElementById('fProf').value = a.professor_nome || '';
+  document.getElementById('fDia').value = a.dia_semana;
+  document.getElementById('fHora').value = a.hora.slice(0,5);
+  document.getElementById('fDur').value = a.duracao_min;
+  document.getElementById('fVagas').value = a.vagas_max;
+  document.getElementById('fSala').value = a.sala || '';
+  document.getElementById('aulaErr').style.display = 'none';
+  document.getElementById('aulaModal').style.display = 'flex';
+}
+
+function closeAulaModal() { document.getElementById('aulaModal').style.display = 'none'; }
+
+async function salvarAula() {
+  const body = {
+    nome: document.getElementById('fNome').value.trim(),
+    professor_nome: document.getElementById('fProf').value.trim(),
+    dia_semana: parseInt(document.getElementById('fDia').value),
+    hora: document.getElementById('fHora').value,
+    duracao_min: parseInt(document.getElementById('fDur').value),
+    vagas_max: parseInt(document.getElementById('fVagas').value),
+    sala: document.getElementById('fSala').value.trim() || null,
+  };
+  const errEl = document.getElementById('aulaErr');
+  if (!body.nome) { errEl.textContent = 'Nome obrigatório.'; errEl.style.display = 'block'; return; }
+  try {
+    const url = editingAulaId ? '/gestor/agenda/'+editingAulaId : '/gestor/agenda';
+    const method = editingAulaId ? 'PUT' : 'POST';
+    const r = await fetch(SERVER + url, {
+      method, headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || 'Erro ao salvar.'; errEl.style.display = 'block'; return; }
+    closeAulaModal();
+    await loadGrade();
+    toast(editingAulaId ? 'Aula atualizada!' : 'Aula criada!');
+  } catch(e) { errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
+}
+
+async function deleteAula(id) {
+  if (!confirm('Remover esta aula da grade?')) return;
+  await fetch(SERVER+'/gestor/agenda/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
+  await loadGrade();
+  toast('Aula removida.');
+}
+
+// ── Reservas / Lista de alunos ──
+async function openReservas(id, nome, hora) {
+  reservasAgendaId = id;
+  document.getElementById('resModalTitle').textContent = nome + ' · ' + hora;
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('resData').value = today;
+  document.getElementById('reservasModal').style.display = 'flex';
+  await loadReservas();
+}
+function closeReservasModal() { document.getElementById('reservasModal').style.display = 'none'; }
+
+async function loadReservas() {
+  const data = document.getElementById('resData').value;
+  const d = await api('/gestor/agenda/'+reservasAgendaId+'/reservas?data='+data);
+  document.getElementById('resModalSub').textContent = `${d.confirmados} confirmados · ${d.vagas_livres} vagas livres de ${d.vagas_max}`;
+  const list = d.reservas || [];
+  if (!list.length) {
+    document.getElementById('resList').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Nenhuma reserva nesta data.</div>';
+    return;
+  }
+  const STATUS_COLOR = { presente:'var(--green)', reservado:'var(--blue)', ausente:'var(--muted)', cancelado:'var(--accent2)' };
+  const STATUS_LABEL = { presente:'✅ Presente', reservado:'⏳ Reservado', ausente:'❌ Ausente', cancelado:'🚫 Cancelado' };
+  document.getElementById('resList').innerHTML = list.map(r => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,rgba(41,95,232,.3),rgba(155,48,255,.3));display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${(r.name||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${r.name||'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${r.email} · FTP ${r.ftp||'—'}W</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:${STATUS_COLOR[r.status]||'var(--muted)'}">${STATUS_LABEL[r.status]||r.status}</span>
+        <select onchange="setStatus(${r.id},this.value)" style="padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:11px;cursor:pointer">
+          <option value="reservado" ${r.status==='reservado'?'selected':''}>⏳</option>
+          <option value="presente"  ${r.status==='presente' ?'selected':''}>✅</option>
+          <option value="ausente"   ${r.status==='ausente'  ?'selected':''}>❌</option>
+          <option value="cancelado" ${r.status==='cancelado'?'selected':''}>🚫</option>
+        </select>
+      </div>
+    </div>`).join('');
+}
+
+async function setStatus(reservaId, status) {
+  await fetch(SERVER+'/gestor/reservas/'+reservaId+'/status', {
+    method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ status })
+  });
+  await loadReservas();
+}
+
+function openWalkin() {
+  const nome = prompt('Nome ou e-mail do aluno para adicionar como walk-in:');
+  if (!nome) return;
+  const aluno = allAlunos.find(a => a.name?.toLowerCase().includes(nome.toLowerCase()) || a.email?.toLowerCase().includes(nome.toLowerCase()));
+  if (!aluno) { toast('Aluno não encontrado.'); return; }
+  const data = document.getElementById('resData').value;
+  fetch(SERVER+'/gestor/agenda/'+reservasAgendaId+'/walkin', {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ user_id: aluno.id, data })
+  }).then(() => { loadReservas(); toast(aluno.name + ' adicionado!'); });
 }
 
 // ── Leaderboard ──
