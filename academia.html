@@ -417,9 +417,31 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
     </div>
     <div class="detail-top">
       <div>
+        <!-- Dados editáveis -->
         <div class="dcard" style="margin-bottom:16px">
-          <h3>Dados do aluno</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h3 style="margin:0">Dados do aluno</h3>
+            <div style="display:flex;gap:8px">
+              <button id="btnEditAluno" onclick="toggleEditAluno()" style="padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--muted);font-size:12px;cursor:pointer">✏️ Editar</button>
+              <button onclick="abrirResetSenha()" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(214,45,45,.3);background:rgba(214,45,45,.06);color:var(--accent2);font-size:12px;cursor:pointer">🔑 Resetar senha</button>
+            </div>
+          </div>
+          <!-- Modo visualização -->
           <div id="dInfo"></div>
+          <!-- Modo edição -->
+          <div id="dEditForm" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div class="fg"><label>Nome</label><input id="eNome" placeholder="Nome completo"></div>
+              <div class="fg"><label>E-mail</label><input id="eEmail" type="email" placeholder="email@exemplo.com"></div>
+              <div class="fg"><label>FTP (W)</label><input id="eFtp" type="number" min="50" max="600" placeholder="130"></div>
+              <div class="fg"><label>Peso (kg)</label><input id="ePeso" type="number" step="0.1" min="30" max="200" placeholder="70"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="salvarEdicaoAluno()" style="padding:9px 20px;border-radius:9px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">Salvar alterações</button>
+              <button onclick="cancelarEdicaoAluno()" style="padding:9px 16px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">Cancelar</button>
+            </div>
+            <div id="dEditErr" style="color:#d62d2d;font-size:12px;margin-top:8px;display:none"></div>
+          </div>
         </div>
         <div class="dcard">
           <h3>Desempenho</h3>
@@ -430,6 +452,21 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
         <h3>Histórico de aulas</h3>
         <div id="dHist"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESET DE SENHA -->
+<div id="resetSenhaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:360px;margin:16px">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔑 Resetar senha</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:18px" id="resetSenhaSubtitle">—</div>
+    <div class="fg"><label>Nova senha</label><input id="novaSenha" type="password" placeholder="Mínimo 6 caracteres"></div>
+    <div class="fg" style="margin-top:10px"><label>Confirmar senha</label><input id="confirmarSenha" type="password" placeholder="Repita a senha"></div>
+    <div id="resetErr" style="color:#d62d2d;font-size:12px;margin-top:8px;display:none"></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button onclick="confirmarResetSenha()" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:700;cursor:pointer">Confirmar</button>
+      <button onclick="fecharResetSenha()" style="padding:11px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:14px;cursor:pointer">Cancelar</button>
     </div>
   </div>
 </div>
@@ -623,7 +660,135 @@ async function verAluno(id) {
 
 function closeDetail() {
   document.getElementById('alunoDetail').style.display = 'none';
+  cancelarEdicaoAluno();
   showTab('alunos');
+}
+
+// ── Edição de aluno ──────────────────────────────────────────
+var _alunoAtual = null;
+
+// Sobrescreve verAluno para guardar dados localmente
+const _verAlunoOrig = verAluno;
+async function verAluno(id) {
+  _alunoAtual = null;
+  cancelarEdicaoAluno();
+  if (!id) return;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('alunoDetail').style.display = 'block';
+  window.scrollTo(0, 0);
+  try {
+    const a = await api('/gestor/alunos/' + id);
+    _alunoAtual = a;
+    renderDetalheAluno(a);
+  } catch(e) { console.error(e); }
+}
+
+function renderDetalheAluno(a) {
+  document.getElementById('dInfo').innerHTML = [
+    ['Nome',     a.name||'—'],
+    ['E-mail',   a.email],
+    ['Cadastro', new Date(a.created_at).toLocaleDateString('pt-BR')],
+    ['Status',   `<span class="badge badge-${a.status||'ativo'}">${a.status||'ativo'}</span>`],
+  ].map(([k,v]) => `<div class="irow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  document.getElementById('dPerf').innerHTML = [
+    ['FTP',    (a.ftp||'—') + ' W'],
+    ['Peso',   (a.peso||'—') + ' kg'],
+    ['Nível',  a.level||'Iniciante'],
+    ['Pontos', a.points||0],
+  ].map(([k,v]) => `<div class="irow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  const hist = a.historico || [];
+  document.getElementById('dHist').innerHTML = !hist.length
+    ? '<div style="text-align:center;padding:32px;color:var(--muted)">Nenhuma aula registrada.</div>'
+    : '<table style="width:100%"><thead><tr><th>Aula</th><th>Data</th><th>Duração</th><th>Watts</th></tr></thead><tbody>' +
+      hist.map(h => `<tr><td><strong>${h.nome||'—'}</strong></td><td style="font-size:12px;color:var(--muted)">${new Date(h.data_aula).toLocaleDateString('pt-BR')}</td><td>${fmtSeg(h.dur_seg)}</td><td>${h.avg_watts||'—'} W</td></tr>`).join('') +
+      '</tbody></table>';
+}
+
+function toggleEditAluno() {
+  if (!_alunoAtual) return;
+  const form = document.getElementById('dEditForm');
+  const info = document.getElementById('dInfo');
+  const btn  = document.getElementById('btnEditAluno');
+  if (form.style.display === 'none') {
+    // Preenche campos
+    document.getElementById('eNome').value  = _alunoAtual.name  || '';
+    document.getElementById('eEmail').value = _alunoAtual.email || '';
+    document.getElementById('eFtp').value   = _alunoAtual.ftp   || '';
+    document.getElementById('ePeso').value  = _alunoAtual.peso  || '';
+    document.getElementById('dEditErr').style.display = 'none';
+    form.style.display = 'block';
+    info.style.display = 'none';
+    btn.textContent = '✕ Cancelar';
+  } else {
+    cancelarEdicaoAluno();
+  }
+}
+
+function cancelarEdicaoAluno() {
+  const form = document.getElementById('dEditForm');
+  const info = document.getElementById('dInfo');
+  const btn  = document.getElementById('btnEditAluno');
+  if (form) form.style.display = 'none';
+  if (info) info.style.display = 'block';
+  if (btn)  btn.textContent = '✏️ Editar';
+}
+
+async function salvarEdicaoAluno() {
+  if (!_alunoAtual) return;
+  const nome  = document.getElementById('eNome').value.trim();
+  const email = document.getElementById('eEmail').value.trim();
+  const ftp   = parseInt(document.getElementById('eFtp').value) || 0;
+  const peso  = parseFloat(document.getElementById('ePeso').value) || 0;
+  const errEl = document.getElementById('dEditErr');
+  if (!nome || !email) { errEl.textContent = 'Nome e e-mail são obrigatórios.'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await fetch(SERVER + '/gestor/alunos/' + _alunoAtual.id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ name: nome, email, ftp, peso })
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || 'Erro ao salvar.'; errEl.style.display = 'block'; return; }
+    // Atualiza local
+    _alunoAtual = { ..._alunoAtual, name: nome, email, ftp, peso };
+    // Atualiza também na lista
+    const idx = allAlunos.findIndex(a => a.id === _alunoAtual.id);
+    if (idx >= 0) allAlunos[idx] = { ...allAlunos[idx], name: nome, email, ftp, peso };
+    cancelarEdicaoAluno();
+    renderDetalheAluno(_alunoAtual);
+    toast('✅ Dados do aluno atualizados!');
+  } catch(e) { errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
+}
+
+// ── Reset de senha ───────────────────────────────────────────
+function abrirResetSenha() {
+  if (!_alunoAtual) return;
+  document.getElementById('resetSenhaSubtitle').textContent = _alunoAtual.name + ' · ' + _alunoAtual.email;
+  document.getElementById('novaSenha').value = '';
+  document.getElementById('confirmarSenha').value = '';
+  document.getElementById('resetErr').style.display = 'none';
+  document.getElementById('resetSenhaModal').style.display = 'flex';
+}
+
+function fecharResetSenha() { document.getElementById('resetSenhaModal').style.display = 'none'; }
+
+async function confirmarResetSenha() {
+  const nova    = document.getElementById('novaSenha').value;
+  const confirma= document.getElementById('confirmarSenha').value;
+  const errEl   = document.getElementById('resetErr');
+  if (!nova || nova.length < 6) { errEl.textContent = 'Mínimo 6 caracteres.'; errEl.style.display = 'block'; return; }
+  if (nova !== confirma) { errEl.textContent = 'As senhas não coincidem.'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await fetch(SERVER + '/gestor/alunos/' + _alunoAtual.id + '/reset-senha', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ password: nova })
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || 'Erro ao resetar.'; errEl.style.display = 'block'; return; }
+    fecharResetSenha();
+    toast('🔑 Senha resetada com sucesso!');
+  } catch(e) { errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
 }
 
 function fmtSeg(s) {
