@@ -99,8 +99,29 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:14p
 .prow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
 .prow:last-child{border-bottom:none}
 .prow .k{color:var(--muted)} .prow .v{font-weight:600}
-.level-bar{height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:8px;overflow:hidden}
-.level-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--purple))}
+
+/* BRASÃO / BADGE */
+.badge-hero{display:flex;flex-direction:column;align-items:center;padding:24px 0 16px;position:relative}
+.badge-svg-wrap{position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.badge-glow{position:absolute;width:120px;height:120px;border-radius:50%;filter:blur(30px);opacity:.35;pointer-events:none}
+.badge-level-name{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;margin-bottom:2px}
+.badge-pts{font-size:13px;font-weight:700}
+.badge-pts span{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900}
+.progress-wrap{width:100%;margin-top:14px}
+.progress-track{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin:6px 0}
+.progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.progress-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+
+/* LEVELS ROAD */
+.levels-road{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.level-step{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;border:1px solid transparent}
+.level-step.done{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06)}
+.level-step.current{border-color:rgba(234,134,12,.35);background:rgba(234,134,12,.06)}
+.level-step.next{opacity:.45}
+.level-step-icon{width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.level-step-info{flex:1}
+.level-step-name{font-size:13px;font-weight:700}
+.level-step-pts{font-size:11px;color:var(--muted)}
 
 /* EMPTY */
 .empty{text-align:center;padding:48px 20px;color:var(--muted)}
@@ -138,9 +159,12 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:14p
 
   <!-- HOME -->
   <div class="pg active" id="pgHome">
-    <div class="greeting">
-      <div class="welcome">Bem-vindo de volta,</div>
-      <div class="uname" id="gName">—</div>
+    <div class="greeting" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="welcome">Bem-vindo de volta,</div>
+        <div class="uname" id="gName">—</div>
+      </div>
+      <div id="homeBadgeMini" style="cursor:pointer" onclick="showPg('Profile')"></div>
     </div>
     <div class="stats-row">
       <div class="sbox"><div class="sv" id="hsTotAulas" style="color:var(--accent)">—</div><div class="sk">Aulas</div></div>
@@ -168,17 +192,24 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:14p
 
   <!-- PROFILE -->
   <div class="pg" id="pgProfile">
-    <div class="pcard">
-      <h3>Meu perfil</h3>
-      <div id="profInfo"></div>
+    <!-- Brasão principal -->
+    <div class="pcard" style="padding:0;overflow:hidden">
+      <div id="profBadgeHero"></div>
     </div>
+    <!-- Progressão de níveis -->
     <div class="pcard">
-      <h3>Nível</h3>
-      <div id="profLevel"></div>
+      <h3>Jornada de níveis</h3>
+      <div class="levels-road" id="profLevelsRoad"></div>
     </div>
+    <!-- Stats -->
     <div class="pcard">
-      <h3>Desempenho geral</h3>
+      <h3>Desempenho</h3>
       <div id="profPerf"></div>
+    </div>
+    <!-- Info -->
+    <div class="pcard">
+      <h3>Minha conta</h3>
+      <div id="profInfo"></div>
     </div>
   </div>
 
@@ -312,7 +343,15 @@ function showPg(name) {
 
 // ── Home ──
 function renderHome() {
-  const p = profileData || {};
+  const p   = profileData || {};
+  const pts = parseInt(p.points) || 0;
+  const cur = getCurrentLevel(pts);
+  // Badge mini na home
+  const mini = document.getElementById('homeBadgeMini');
+  if (mini) {
+    mini.innerHTML = getBadgeSVG(cur.key, 56) +
+      `<div style="font-size:9px;font-weight:700;letter-spacing:1px;color:${cur.cor};text-align:center;margin-top:2px;">${pts.toLocaleString('pt-BR')} pts</div>`;
+  }
   document.getElementById('hsTotAulas').textContent = p.total_aulas || 0;
   document.getElementById('hsTotKcal').textContent  = p.total_kcal  ? Math.round(p.total_kcal) : 0;
   document.getElementById('hsFtp').textContent      = p.ftp || '—';
@@ -339,34 +378,138 @@ function renderHistory() {
   el.innerHTML = histData.map(a => `<div class="card" style="margin-bottom:10px">${aulaItem(a)}</div>`).join('');
 }
 
-function renderProfile() {
-  const p = profileData || {};
-  const levels = ['Iniciante','Básico','Intermediário','Avançado','Elite'];
-  const lv = p.level || 'Iniciante';
-  const lvIdx = levels.indexOf(lv);
-  const pct = Math.round(((lvIdx < 0 ? 0 : lvIdx) / (levels.length-1)) * 100);
+// ── Sistema de níveis e brasões ──────────────────────────────
+const LEVELS = [
+  { key:'iniciante',     nome:'Iniciante',     pts:0,      cor:'#888888', cor2:'#555',    emoji:'🔘' },
+  { key:'basico',        nome:'Básico',         pts:300,    cor:'#5db13d', cor2:'#3a7025', emoji:'🟢' },
+  { key:'intermediario', nome:'Intermediário',  pts:800,    cor:'#295fe8', cor2:'#1a3d99', emoji:'🔵' },
+  { key:'avancado',      nome:'Avançado',       pts:2000,   cor:'#d7c414', cor2:'#9e8e0d', emoji:'🟡' },
+  { key:'elite',         nome:'Elite',          pts:5000,   cor:'#ea860c', cor2:'#b85e06', emoji:'🟠' },
+  { key:'master',        nome:'Master',         pts:10000,  cor:'#d62d2d', cor2:'#8a1818', emoji:'🔴' },
+  { key:'champion',      nome:'Champion',       pts:20000,  cor:'#9b30ff', cor2:'#5e1a99', emoji:'🟣' },
+  { key:'legend',        nome:'Legend',         pts:40000,  cor:'#00d4ff', cor2:'#007a99', emoji:'💎' },
+  { key:'godmode',       nome:'God Mode',       pts:80000,  cor:'#ffe033', cor2:'#c9a800', emoji:'⚡' },
+];
 
-  document.getElementById('profInfo').innerHTML = [
-    ['Nome', p.name||'—'],
-    ['E-mail', p.email||'—'],
-    ['Academia', p.license_id||'—'],
+function getBadgeSVG(level, size=100) {
+  const lv = LEVELS.find(l => l.key === level.toLowerCase().replace(/\s/g,'').replace('é','e').replace('ó','o').replace('ê','e').replace('á','a')) || LEVELS[0];
+  const c  = lv.cor;
+  const c2 = lv.cor2;
+  const s  = size;
+  const cx = s/2, cy = s/2, r = s*0.42;
+  // Hexágono
+  const pts6 = Array.from({length:6},(_,i)=>{
+    const a = Math.PI/180*(60*i-90);
+    return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+  }).join(' ');
+  // Estrela interna de destaque
+  const rIn = r*0.55;
+  const star = Array.from({length:12},(_,i)=>{
+    const rr = i%2===0 ? rIn : rIn*0.5;
+    const a  = Math.PI/180*(30*i-90);
+    return `${cx+rr*Math.cos(a)},${cy+rr*Math.sin(a)}`;
+  }).join(' ');
+  const ini = lv.nome[0];
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+    <defs>
+      <linearGradient id="bg${lv.key}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${c}"/>
+        <stop offset="100%" stop-color="${c2}"/>
+      </linearGradient>
+      <filter id="glow${lv.key}"><feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <polygon points="${pts6}" fill="url(#bg${lv.key})" opacity=".15" stroke="${c}" stroke-width="1.5"/>
+    <polygon points="${pts6}" fill="none" stroke="${c}" stroke-width="2.5" filter="url(#glow${lv.key})"/>
+    <polygon points="${star}" fill="${c}" opacity=".18"/>
+    <text x="${cx}" y="${cy+s*.06}" text-anchor="middle" dominant-baseline="middle"
+      font-family="'Bebas Neue',sans-serif" font-size="${s*.28}" fill="${c}"
+      filter="url(#glow${lv.key})">${ini}</text>
+    <text x="${cx}" y="${cy+r*.72}" text-anchor="middle"
+      font-family="'Barlow Condensed',sans-serif" font-size="${s*.1}" font-weight="700"
+      fill="${c}" opacity=".9" letter-spacing="1">${lv.nome.toUpperCase()}</text>
+  </svg>`;
+}
+
+function getCurrentLevel(pts) {
+  let cur = LEVELS[0];
+  for (const l of LEVELS) { if (pts >= l.pts) cur = l; else break; }
+  return cur;
+}
+function getNextLevel(pts) {
+  return LEVELS.find(l => l.pts > pts) || null;
+}
+
+function renderProfile() {
+  const p   = profileData || {};
+  const pts = parseInt(p.points) || 0;
+  const cur = getCurrentLevel(pts);
+  const nxt = getNextLevel(pts);
+
+  // ── Brasão Hero ──
+  const ptsParaProx = nxt ? nxt.pts - pts : 0;
+  const ptsNoNivel  = nxt ? pts - cur.pts : cur.pts;
+  const rangNivel   = nxt ? nxt.pts - cur.pts : 1;
+  const pct         = nxt ? Math.min(100, Math.round(ptsNoNivel / rangNivel * 100)) : 100;
+
+  document.getElementById('profBadgeHero').innerHTML = `
+    <div class="badge-hero" style="background:radial-gradient(ellipse at 50% 30%,${cur.cor}15 0%,transparent 70%)">
+      <div class="badge-svg-wrap">
+        <div class="badge-glow" style="background:${cur.cor}"></div>
+        ${getBadgeSVG(cur.key, 110)}
+      </div>
+      <div class="badge-level-name" style="color:${cur.cor}">${cur.nome.toUpperCase()}</div>
+      <div class="badge-pts" style="color:var(--muted)">
+        <span style="color:${cur.cor}">${pts.toLocaleString('pt-BR')}</span> pontos
+      </div>
+      ${nxt ? `
+      <div class="progress-wrap" style="padding:0 24px">
+        <div class="progress-labels">
+          <span>${cur.nome}</span>
+          <span style="color:${nxt.cor}">${nxt.nome} em ${ptsParaProx.toLocaleString('pt-BR')} pts</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg,${cur.cor},${nxt.cor})"></div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--muted)">${pct}% concluído</div>
+      </div>` : `
+      <div style="margin-top:12px;font-size:12px;color:${cur.cor};font-weight:700;letter-spacing:1px">
+        ⚡ NÍVEL MÁXIMO ATINGIDO
+      </div>`}
+    </div>`;
+
+  // ── Jornada de níveis ──
+  document.getElementById('profLevelsRoad').innerHTML = LEVELS.map(l => {
+    const done    = pts >= l.pts;
+    const current = l.key === cur.key;
+    const cls     = current ? 'current' : done ? 'done' : 'next';
+    return `<div class="level-step ${cls}">
+      <div class="level-step-icon">${getBadgeSVG(l.key, 36)}</div>
+      <div class="level-step-info">
+        <div class="level-step-name" style="color:${done||current ? l.cor:'var(--muted)'}">${l.nome}</div>
+        <div class="level-step-pts">${l.pts.toLocaleString('pt-BR')} pontos${current?' · atual':done?' · conquistado':''}</div>
+      </div>
+      ${current ? `<div style="font-size:18px">${l.emoji}</div>` : done ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${l.cor}" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+    </div>`;
+  }).join('');
+
+  // ── Desempenho ──
+  document.getElementById('profPerf').innerHTML = [
+    ['FTP',          (p.ftp||'—')+' W'],
+    ['Peso',         (p.peso||'—')+' kg'],
+    ['W/kg',         p.ftp&&p.peso ? (p.ftp/p.peso).toFixed(2)+' w/kg' : '—'],
+    ['Total aulas',  p.total_aulas||0],
+    ['Total kcal',   p.total_kcal ? Math.round(p.total_kcal).toLocaleString('pt-BR') : 0],
+    ['Horas totais', p.total_seg ? fmtSeg(p.total_seg) : '—'],
   ].map(([k,v]) => `<div class="prow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
 
-  document.getElementById('profLevel').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-      <span style="font-size:18px;font-weight:700">${lv}</span>
-      <span style="font-size:12px;color:var(--muted)">${p.points||0} pts</span>
-    </div>
-    <div class="level-bar"><div class="level-fill" style="width:${pct}%"></div></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px">${levels[Math.min(lvIdx+1,levels.length-1)]} → ${100-pct}% para o próximo nível</div>`;
-
-  document.getElementById('profPerf').innerHTML = [
-    ['FTP', (p.ftp||'—')+' W'],
-    ['Peso', (p.peso||'—')+' kg'],
-    ['W/kg', p.ftp&&p.peso ? (p.ftp/p.peso).toFixed(2)+' w/kg' : '—'],
-    ['Total aulas', p.total_aulas||0],
-    ['Total kcal', p.total_kcal ? Math.round(p.total_kcal) : 0],
-    ['Total tempo', p.total_seg ? fmtSeg(p.total_seg) : '—'],
+  // ── Conta ──
+  document.getElementById('profInfo').innerHTML = [
+    ['Nome',     p.name||'—'],
+    ['E-mail',   p.email||'—'],
+    ['Academia', p.license_id||'—'],
+    ['Membro desde', p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}) : '—'],
   ].map(([k,v]) => `<div class="prow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
 }
 
