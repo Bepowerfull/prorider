@@ -451,6 +451,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
     <div class="form-row full">
       <div class="form-group">
+        <label>🚲 Capacidade da sala (nº de bikes)</label>
+        <input type="number" id="licMaxBikes" value="0" min="0" placeholder="Ex: 20">
+        <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block">
+          ⚙️ <strong>Configuração física da sala.</strong> Apenas você pode definir. O gestor da academia nunca poderá cadastrar uma aula com mais vagas do que este número.
+        </small>
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="form-group">
         <label>Observações</label>
         <textarea id="licObs" placeholder="Notas internas sobre este cliente..."></textarea>
       </div>
@@ -620,6 +629,7 @@ function renderLicencas(list) {
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" title="Entrar como gestor desta academia" onclick="impersonar('${l.codigo}','${(l.nome_fantasia||l.nome).replace(/'/g,'')}')" style="background:rgba(41,95,232,.12);border-color:rgba(41,95,232,.3);color:#295fe8">⚡ Entrar</button>
           <button class="btn btn-outline btn-sm" onclick="editLicenca(${l.id})">Editar</button>
+          <button class="btn btn-outline btn-sm" title="Gerar link de onboarding" onclick="gerarOnboardingLink(${l.id},'${(l.nome_fantasia||l.nome).replace(/'/g,'')}')" style="color:#f59e0b;border-color:rgba(245,158,11,.3)">🔗 Link</button>
           <button class="btn btn-outline btn-sm" onclick="abrirPagamentos('${l.codigo}','${(l.nome_fantasia||l.nome).replace(/'/g,'')}')" style="color:var(--green);border-color:rgba(93,177,61,.3)">R$</button>
           <button class="btn btn-danger btn-sm" onclick="deleteLicenca(${l.id},'${l.nome}')">✕</button>
         </div>
@@ -638,7 +648,24 @@ async function impersonar(licId, nome) {
     if (!r.ok) { alert('Erro: ' + d.error); return; }
     // Abre academia.html com o token de impersonação
     const url = 'academia.html?impersonate=' + encodeURIComponent(d.token) + '&academia=' + encodeURIComponent(nome);
-    window.open(url, '_blank');
+    window.location.href = url;
+  } catch(e) { alert('Erro de conexão.'); }
+}
+
+// ── Onboarding — gera link de cadastro para a academia ──────────
+async function gerarOnboardingLink(licId, nome) {
+  if (!confirm(`Gerar link de onboarding para "${nome}"?\n\nQualquer link anterior será invalidado. Envie o novo link para o responsável pela academia.`)) return;
+  try {
+    const r = await fetch(SERVER+'/admin/licencas/'+licId+'/gerar-onboarding', {
+      method:'POST', headers:{'Authorization':'Bearer '+adminToken}
+    });
+    const d = await r.json();
+    if (!r.ok) { alert('Erro: ' + d.error); return; }
+    // Copia link para clipboard e mostra
+    const link = d.link;
+    try { await navigator.clipboard.writeText(link); } catch(e) {}
+    const msg = `✅ Link gerado e copiado para a área de transferência!\n\n${link}\n\n⚠️ Este link é de uso único — o cadastro invalida o link automaticamente.`;
+    alert(msg);
   } catch(e) { alert('Erro de conexão.'); }
 }
 
@@ -786,6 +813,7 @@ function openNovaLicenca() {
   document.getElementById('licTel').value = '';
   document.getElementById('licValor').value = '';
   document.getElementById('licMaxAlunos').value = '30';
+  document.getElementById('licMaxBikes').value = '0';
   document.getElementById('licObs').value = '';
   // Default vencimento = 30 dias
   var d = new Date(); d.setDate(d.getDate()+30);
@@ -806,6 +834,7 @@ function editLicenca(id) {
   document.getElementById('licTel').value = l.contato_tel||'';
   document.getElementById('licValor').value = l.valor_mensal||'';
   document.getElementById('licMaxAlunos').value = l.max_alunos;
+  document.getElementById('licMaxBikes').value  = l.max_bikes || 0;
   document.getElementById('licVencimento').value = l.vencimento ? l.vencimento.split('T')[0] : '';
   document.getElementById('licObs').value = l.obs||'';
   document.getElementById('licErrMsg').style.display = 'none';
@@ -824,6 +853,7 @@ async function salvarLicenca() {
     contato_tel:   document.getElementById('licTel').value,
     valor_mensal:  parseFloat(document.getElementById('licValor').value)||0,
     max_alunos:    parseInt(document.getElementById('licMaxAlunos').value)||30,
+    max_bikes:     parseInt(document.getElementById('licMaxBikes').value)||0,
     vencimento:    document.getElementById('licVencimento').value||null,
     obs:           document.getElementById('licObs').value,
     status:        document.getElementById('licPlano').value === 'trial' ? 'trial' : 'ativa',

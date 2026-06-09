@@ -279,7 +279,10 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
         <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px">Grade de Aulas</div>
         <div style="font-size:12px;color:var(--muted)">Horários fixos semanais da academia</div>
       </div>
-      <button onclick="openNovaAula()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">+ Nova Aula</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="gradeCapacidade" style="display:none;background:rgba(41,95,232,.1);border:1px solid rgba(41,95,232,.25);color:#295fe8;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:.5px"></span>
+        <button onclick="openNovaAula()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer">+ Nova Aula</button>
+      </div>
     </div>
 
     <!-- Grade por dia da semana -->
@@ -307,7 +310,10 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div class="fg"><label>Duração (min)</label><input id="fDur" type="number" value="50" min="20" max="120"></div>
-          <div class="fg"><label>Vagas</label><input id="fVagas" type="number" value="20" min="1" max="100"></div>
+          <div class="fg">
+            <label>Vagas <span id="fVagasHint" style="font-weight:400;color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0"></span></label>
+            <input id="fVagas" type="number" value="20" min="1" max="100">
+          </div>
         </div>
         <div class="fg"><label>Sala (opcional)</label><input id="fSala" placeholder="Sala 1, Studio B..."></div>
       </div>
@@ -552,23 +558,29 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 
 <script>
 const SERVER = 'https://prorider-server-production-5784.up.railway.app';
-var token = localStorage.getItem('pr_gestor_token') || '';
-var user  = JSON.parse(localStorage.getItem('pr_gestor_user') || 'null');
+// Impersonação usa sessionStorage (não polui localStorage; some ao fechar a aba)
+var _impSession = sessionStorage.getItem('pr_imp_token') ? {
+  token: sessionStorage.getItem('pr_imp_token'),
+  user:  JSON.parse(sessionStorage.getItem('pr_imp_user') || 'null')
+} : null;
+
+var token = (_impSession ? _impSession.token : null) || localStorage.getItem('pr_gestor_token') || '';
+var user  = (_impSession ? _impSession.user  : null) || JSON.parse(localStorage.getItem('pr_gestor_user') || 'null');
 var allAlunos = [];
 
 function init() {
-  // Impersonação: admin abre academia.html?impersonate=TOKEN
+  // Impersonação: admin navega para academia.html?impersonate=TOKEN
   const params = new URLSearchParams(window.location.search);
   const impToken = params.get('impersonate');
   const acadNome = params.get('academia');
   if (impToken) {
     try {
-      // Decode payload sem verificar (verificação é no servidor)
       const payload = JSON.parse(atob(impToken.split('.')[1]));
       token = impToken;
       user  = { ...payload, name: '⚡ ' + (acadNome||'Academia') + ' (modo suporte)' };
-      localStorage.setItem('pr_gestor_token', token);
-      localStorage.setItem('pr_gestor_user', JSON.stringify(user));
+      // Guarda APENAS em sessionStorage — não toca o localStorage do gestor real
+      sessionStorage.setItem('pr_imp_token', token);
+      sessionStorage.setItem('pr_imp_user', JSON.stringify(user));
       // Limpa URL sem reload
       window.history.replaceState({}, '', 'academia.html');
       showApp();
@@ -606,9 +618,17 @@ async function doLogin() {
 document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 function doLogout() {
+  const wasImpersonating = !!(user && user.impersonated_by);
   localStorage.removeItem('pr_gestor_token');
   localStorage.removeItem('pr_gestor_user');
-  location.reload();
+  sessionStorage.removeItem('pr_imp_token');
+  sessionStorage.removeItem('pr_imp_user');
+  if (wasImpersonating) {
+    // Volta ao painel do admin em vez de mostrar tela de login da academia
+    window.location.href = 'index.html';
+  } else {
+    location.reload();
+  }
 }
 
 function showApp() {
@@ -619,8 +639,9 @@ function showApp() {
   // Banner de modo suporte
   if (user.impersonated_by) {
     var banner = document.createElement('div');
-    banner.style.cssText = 'background:linear-gradient(90deg,rgba(41,95,232,.2),rgba(155,48,255,.2));border-bottom:1px solid rgba(41,95,232,.4);padding:8px 24px;font-size:12px;font-weight:700;color:#295fe8;text-align:center;letter-spacing:1px;';
-    banner.textContent = '⚡ MODO SUPORTE — Acessando como ' + user.impersonated_by + ' · Token válido por 4h';
+    banner.style.cssText = 'background:linear-gradient(90deg,rgba(41,95,232,.2),rgba(155,48,255,.2));border-bottom:2px solid rgba(41,95,232,.5);padding:8px 24px;font-size:12px;font-weight:700;color:#295fe8;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;';
+    banner.innerHTML = '<span>⚡ MODO SUPORTE — Acessando como <strong>' + (user.name||'Academia') + '</strong> · Token válido por 4h</span>'
+      + '<button onclick="doLogout()" style="background:rgba(41,95,232,.2);border:1px solid rgba(41,95,232,.5);color:#295fe8;padding:4px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap">← Voltar ao Admin</button>';
     document.getElementById('app').insertBefore(banner, document.getElementById('app').firstChild);
   }
   // Definir mês/ano atual no relatório
@@ -985,10 +1006,26 @@ async function salvarCartao() {
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const DIAS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 var gradeData = [];
+var licConfig  = { max_bikes: 0 };  // carregado do servidor — somente leitura para o gestor
 var editingAulaId = null;
 var reservasAgendaId = null;
 
 async function loadGrade() {
+  // Carrega config da licença (inclui max_bikes definido pelo admin)
+  try {
+    const cfg = await api('/gestor/config');
+    if (cfg && !cfg.error) licConfig = cfg;
+  } catch(e) {}
+  // Atualiza indicador de capacidade na aba de grade
+  const capEl = document.getElementById('gradeCapacidade');
+  if (capEl) {
+    if (licConfig.max_bikes > 0) {
+      capEl.textContent = `🚲 Sala: ${licConfig.max_bikes} bikes`;
+      capEl.style.display = 'inline-block';
+    } else {
+      capEl.style.display = 'none';
+    }
+  }
   gradeData = await api('/gestor/agenda');
   renderGrade();
 }
@@ -1044,6 +1081,21 @@ function aulaCard(a) {
   </div>`;
 }
 
+function _applyMaxBikes(defaultVal) {
+  const mb = licConfig.max_bikes || 0;
+  const fv = document.getElementById('fVagas');
+  const hint = document.getElementById('fVagasHint');
+  if (mb > 0) {
+    fv.max = mb;
+    fv.value = Math.min(parseInt(defaultVal)||mb, mb);
+    hint.textContent = `(máx: ${mb} bikes)`;
+  } else {
+    fv.max = 200;
+    fv.value = defaultVal || 20;
+    hint.textContent = '';
+  }
+}
+
 function openNovaAula() {
   editingAulaId = null;
   document.getElementById('aulaModalTitle').textContent = 'Nova Aula';
@@ -1052,7 +1104,7 @@ function openNovaAula() {
   document.getElementById('fDia').value = new Date().getDay() || 1;
   document.getElementById('fHora').value = '07:00';
   document.getElementById('fDur').value = '50';
-  document.getElementById('fVagas').value = '20';
+  _applyMaxBikes(licConfig.max_bikes || 20);
   document.getElementById('fSala').value = '';
   document.getElementById('aulaErr').style.display = 'none';
   document.getElementById('aulaModal').style.display = 'flex';
@@ -1068,7 +1120,7 @@ function openEditAula(id) {
   document.getElementById('fDia').value = a.dia_semana;
   document.getElementById('fHora').value = a.hora.slice(0,5);
   document.getElementById('fDur').value = a.duracao_min;
-  document.getElementById('fVagas').value = a.vagas_max;
+  _applyMaxBikes(a.vagas_max);
   document.getElementById('fSala').value = a.sala || '';
   document.getElementById('aulaErr').style.display = 'none';
   document.getElementById('aulaModal').style.display = 'flex';
