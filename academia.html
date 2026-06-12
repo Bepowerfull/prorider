@@ -1519,8 +1519,8 @@ init();
 // ══════════════════════════════════════════════════════════════
 
 function _qrImgUrl(text, size) {
-  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size
-    + '&data=' + encodeURIComponent(text) + '&bgcolor=ffffff&color=000000&margin=1&ecc=M';
+  return 'https://chart.googleapis.com/chart?cht=qr&chs=' + size + 'x' + size
+    + '&chl=' + encodeURIComponent(text) + '&choe=UTF-8&chld=M|1';
 }
 
 function _qrPortaHtml(payload, size) {
@@ -1585,8 +1585,8 @@ function imprimirQRs() {
 
   var items = '';
   // QR da porta
-  var portaUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
-    + encodeURIComponent('prorider://gym?lic=' + licCodigo) + '&bgcolor=ffffff&color=000000';
+  var portaUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='
+    + encodeURIComponent('prorider://gym?lic=' + licCodigo) + '&choe=UTF-8&chld=M|1';
   items += '<div class="qr-item porta">'
     + '<div class="qr-label">📍 PORTA DA SALA</div>'
     + '<img src="' + portaUrl + '" width="140" height="140">'
@@ -1596,8 +1596,8 @@ function imprimirQRs() {
 
   // QRs das bikes
   for (var i = 1; i <= numBikes; i++) {
-    var url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
-      + encodeURIComponent('prorider://bike?n=' + i + '&lic=' + licCodigo) + '&bgcolor=ffffff&color=000000';
+    var url = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='
+      + encodeURIComponent('prorider://bike?n=' + i + '&lic=' + licCodigo) + '&choe=UTF-8&chld=M|1';
     items += '<div class="qr-item">'
       + '<div class="qr-label">🚲 BIKE ' + i + '</div>'
       + '<img src="' + url + '" width="120" height="120">'
