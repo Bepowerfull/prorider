@@ -158,6 +158,7 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
     <div class="tab" onclick="showTab('relatorio')" id="tab-relatorio">📊 Relatórios</div>
     <div class="tab" onclick="showTab('financeiro')" id="tab-financeiro">💳 Financeiro</div>
     <div class="tab" onclick="showTab('emails')" id="tab-emails">E-mails</div>
+    <div class="tab" onclick="showTab('qrcodes')" id="tab-qrcodes">🔲 QR Bikes</div>
   </div>
 
   <!-- DASHBOARD -->
@@ -185,6 +186,44 @@ tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
         <thead><tr><th>Nome</th><th>E-mail</th><th>FTP</th><th>Nível</th><th>Aulas</th><th>Última aula</th><th>Status</th></tr></thead>
         <tbody id="alunosTable"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- QR CODES -->
+  <div class="page content" id="page-qrcodes">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">QR Codes</div>
+        <div style="font-size:22px;font-weight:700">Adesivos & Acesso</div>
+      </div>
+      <button onclick="imprimirQRs()" style="padding:10px 20px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">🖨️ Imprimir tudo</button>
+    </div>
+
+    <!-- QR da porta -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:14px">📍 QR da Porta da Sala</div>
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+        <div id="qrPortaDiv" style="background:#fff;padding:12px;border-radius:12px;display:inline-block"></div>
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Coloque na entrada da sala</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;max-width:360px">
+            Aluno escaneia ao chegar → vê se tem vaga na aula atual → pode reservar a próxima.<br>
+            <span style="color:var(--accent);font-weight:600">Nunca muda</span> — imprima uma vez e cole.
+          </div>
+          <div id="qrPortaPayload" style="margin-top:10px;font-size:11px;color:var(--muted);font-family:monospace;word-break:break-all"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QRs das bikes -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">🚲 QR por Bike</div>
+        <div style="font-size:12px;color:var(--muted)">Cole o adesivo correspondente em cada bike ou na parede atrás dela</div>
+      </div>
+      <div id="qrBikesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px">
+        <div style="color:var(--muted);font-size:13px;padding:20px">Carregando...</div>
+      </div>
     </div>
   </div>
 
@@ -713,6 +752,7 @@ function showTab(t) {
   if (t === 'grade') loadGrade();
   if (t === 'leaderboard') loadLeaderboard();
   if (t === 'relatorio') loadRelatorio();
+  if (t === 'qrcodes') loadQRCodes();
 }
 
 // ── API ──
@@ -1473,6 +1513,127 @@ function toast(msg) {
 }
 
 init();
+
+// ══════════════════════════════════════════════════════════════
+// QR CODES — Geração e impressão dos adesivos
+// ══════════════════════════════════════════════════════════════
+
+function _qrImgUrl(text, size) {
+  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size
+    + '&data=' + encodeURIComponent(text) + '&bgcolor=ffffff&color=000000&margin=1&ecc=M';
+}
+
+function _qrPortaHtml(payload, size) {
+  size = size || 180;
+  return '<div style="position:relative;display:inline-block;background:#fff;padding:14px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.3)">'
+    + '<img src="' + _qrImgUrl(payload, size) + '" width="' + size + '" height="' + size + '" style="display:block">'
+    + '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:10px;padding:5px 7px;text-align:center;box-shadow:0 0 0 2px rgba(234,134,12,.25)">'
+    + '<div style="font-size:14px;line-height:1;margin-bottom:1px">⚡</div>'
+    + '<div style="font-size:7px;font-weight:900;letter-spacing:1.5px;color:#111;font-family:Arial,sans-serif;line-height:1.2">PRO<br>RIDER</div>'
+    + '</div>'
+    + '</div>';
+}
+
+async function loadQRCodes() {
+  var grid = document.getElementById('qrBikesGrid');
+  var portaDiv = document.getElementById('qrPortaDiv');
+  var portaLabel = document.getElementById('qrPortaPayload');
+  if (grid) grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;grid-column:1/-1">A carregar...</div>';
+
+  // Sempre busca do servidor para garantir número correto de bikes
+  try {
+    var r = await fetch(SERVER + '/gestor/config', { headers: { Authorization: 'Bearer ' + token } });
+    var cfg = await r.json();
+    if (cfg && !cfg.error) licConfig = cfg;
+  } catch(e) {}
+
+  var licCodigo = licConfig.codigo || licConfig.license_id || user?.license_id || '';
+  var numBikes  = parseInt(licConfig.bikes_disponiveis || licConfig.max_bikes || 0, 10);
+
+  // Se o servidor não devolveu nada útil, mostra erro claro
+  if (!numBikes) {
+    if (grid) grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;grid-column:1/-1">⚠️ Não foi possível obter o número de bikes da licença. Verifique a ligação ao servidor.</div>';
+    return;
+  }
+
+  // ── QR da porta ──
+  var portaPayload = 'prorider://gym?lic=' + licCodigo;
+  if (portaDiv) portaDiv.innerHTML = _qrPortaHtml(portaPayload, 180);
+  if (portaLabel) portaLabel.textContent = portaPayload;
+
+  // ── QRs das bikes ──
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (var i = 1; i <= numBikes; i++) {
+    var payload = 'prorider://bike?n=' + i + '&lic=' + licCodigo;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;';
+    card.innerHTML = '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">Bike ' + String(i).padStart(2,'0') + '</div>'
+      + '<div style="background:#fff;padding:8px;border-radius:10px;display:inline-block;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.2)">'
+      + '<img src="' + _qrImgUrl(payload, 120) + '" width="120" height="120" style="display:block">'
+      + '</div>'
+      + '<div style="font-size:9px;color:var(--muted);word-break:break-all;line-height:1.5;font-family:monospace">' + payload + '</div>';
+    grid.appendChild(card);
+  }
+}
+
+function imprimirQRs() {
+  // Abre janela de impressão com layout otimizado para adesivos
+  var licCodigo = licConfig?.codigo || user?.license_id || '';
+  var numBikes  = licConfig?.bikes_disponiveis || licConfig?.max_bikes || 20;
+  var SERVER_HTTP = SERVER;
+
+  var items = '';
+  // QR da porta
+  var portaUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+    + encodeURIComponent('prorider://gym?lic=' + licCodigo) + '&bgcolor=ffffff&color=000000';
+  items += '<div class="qr-item porta">'
+    + '<div class="qr-label">📍 PORTA DA SALA</div>'
+    + '<img src="' + portaUrl + '" width="140" height="140">'
+    + '<div class="qr-sub">Escaneie ao entrar</div>'
+    + '<div class="qr-lic">' + licCodigo + '</div>'
+    + '</div>';
+
+  // QRs das bikes
+  for (var i = 1; i <= numBikes; i++) {
+    var url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+      + encodeURIComponent('prorider://bike?n=' + i + '&lic=' + licCodigo) + '&bgcolor=ffffff&color=000000';
+    items += '<div class="qr-item">'
+      + '<div class="qr-label">🚲 BIKE ' + i + '</div>'
+      + '<img src="' + url + '" width="120" height="120">'
+      + '<div class="qr-sub">Escaneie com o app</div>'
+      + '</div>';
+  }
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<title>QR Codes — ProRider</title>'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;background:#fff;margin:0;padding:20px}'
+    + 'h1{font-size:18px;margin-bottom:4px}'
+    + '.sub{font-size:12px;color:#666;margin-bottom:20px}'
+    + '.grid{display:flex;flex-wrap:wrap;gap:12px}'
+    + '.qr-item{border:1.5px solid #ddd;border-radius:12px;padding:14px 12px;text-align:center;width:150px;page-break-inside:avoid}'
+    + '.qr-item.porta{width:200px;border-color:#295fe8;border-width:2px}'
+    + '.qr-label{font-size:11px;font-weight:700;letter-spacing:2px;color:#333;margin-bottom:8px}'
+    + '.qr-sub{font-size:10px;color:#888;margin-top:6px}'
+    + '.qr-lic{font-size:9px;color:#aaa;margin-top:3px;font-family:monospace}'
+    + '.qr-logo{position:relative;display:inline-block}'
+    + '.qr-logo-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:8px;padding:4px 6px;text-align:center;box-shadow:0 0 0 2px rgba(234,134,12,.25)}'
+    + '@media print{body{padding:8px}.no-print{display:none}.qr-item{break-inside:avoid}}'
+    + '</style></head><body>'
+    + '<div class="no-print" style="margin-bottom:16px">'
+    + '<button onclick="window.print()" style="padding:10px 24px;background:#295fe8;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700">🖨️ Imprimir / Salvar PDF</button>'
+    + '<span style="margin-left:12px;font-size:12px;color:#888">Ctrl+P também funciona · Recomendado: papel adesivo A4</span>'
+    + '</div>'
+    + '<h1>ProRider — QR Codes de Acesso</h1>'
+    + '<div class="sub">Academia: <strong>' + licCodigo + '</strong> · ' + numBikes + ' bikes</div>'
+    + '<div class="grid">' + items + '</div>'
+    + '</body></html>';
+
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
 </script>
 </body>
 </html>
